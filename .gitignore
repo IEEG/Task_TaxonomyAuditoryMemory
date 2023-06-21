@@ -162,5 +162,6 @@ cython_debug/
 # Mac crap
 .DS_Store
 
-# log files
+# Experiment files
 logs/
+.prev_dlg.json

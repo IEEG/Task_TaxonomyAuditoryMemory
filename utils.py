@@ -53,8 +53,8 @@ def openingDlg():
         dist = prevDlg['dist']
         ttlIdx = ttlOpts.index(prevDlg['ttl'])
         ttlOpts.insert(0,ttlOpts.pop(ttlIdx))
-        diodeIdx = diodeOpts.index(prevDlg['photodiode'])
-        diodeOpts.insert(0,diodeOpts.pop(diodeIdx))
+        #diodeIdx = diodeOpts.index(prevDlg['photodiode'])
+        #diodeOpts.insert(0,diodeOpts.pop(diodeIdx))
         etIdx = eyetrackerOpts.index(prevDlg['eyetracker'])
         eyetrackerOpts.insert(0,eyetrackerOpts.pop(etIdx))
 
@@ -69,11 +69,12 @@ def openingDlg():
     runDlg.addField('Distance from screen (cm)', dist)
     runDlg.addField('TTL',choices=ttlOpts)
     runDlg.addField('Monitor',choices=monitorOpts)
-    runDlg.addField('Photodiode',choices=diodeOpts)
+    #runDlg.addField('Photodiode',choices=diodeOpts)
     runDlg.addField('EyeTracker',choices=eyetrackerOpts)
     runDlg.addText(
         'Distance is only necessary if visual angle ("deg") is being used to calculate\nstimulus size or if you would like to calculate visual angle post-hoc')
-    fieldnames = ['runid','dist','ttl','monitor','photodiode','eyetracker']
+    #fieldnames = ['runid','dist','ttl','monitor','photodiode','eyetracker']
+    fieldnames = ['runid','dist','ttl','monitor','eyetracker']
 
     # If it doesn't exist, create logs folder
     logsFolder = _thisDir + os.sep + u'logs'
