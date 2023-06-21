@@ -1,0 +1,9 @@
+{
+  "screen_resolution": [1728, 1117],
+  "monitor_width": 34,
+  "sound_fs": 44100,
+  "ttl_code": 255,
+  "full_screen": true,
+  "mmb_port_code": null,
+  "pport_port_code": "DFF8"
+}
