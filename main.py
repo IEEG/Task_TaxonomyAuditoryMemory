@@ -20,6 +20,7 @@ import sys
 from psychtoolbox import GetSecs
 from psychopy import core, event, visual, sound, logging, gui
 from psychopy.hardware import keyboard
+from psychopy.tools import environmenttools
 from psychopy.data import ExperimentHandler, TrialHandler2
 from psychopy.constants import NOT_STARTED, STARTED, FINISHED
 
@@ -57,8 +58,8 @@ def run():
         expInfo['screen_resolution'], expInfo['monitor_width'], expInfo['full_screen'], expInfo['monitor'],
         color='black', dist=expInfo['dist'])
     kb = keyboard.Keyboard()
-    myMouse = event.Mouse()
-    myMouse.setVisible(1)
+    mouse = event.Mouse(win=win)
+    mouse.setVisible(1)
 
     # Display a cross in the middle of the screen
     crossFixation = visual.ShapeStim(
@@ -100,42 +101,38 @@ def run():
         height=0.1, ori=0,color='white', colorSpace='rgb', opacity=1, 
         name='noResponseText')
 
-
-    # The response buttons
-    sameBttn = visual.TextBox2(
-        win,
-        "Same",
-        pos=(-0.5,0),
-        letterHeight=0.05,
-        fillColor='green',
-        color='black',
-        colorSpace='rgb',
-        opacity=None,
-        bold=True, italic=False,
-        padding=None,
-        anchor='center',
-        name='sameBttn',
-        size=(0.3,0.3),
-        units='norm')
-
-    diffBttn = visual.TextBox2(
-        win,
-        "Different",
-        pos=(0.5,0),
-        letterHeight=0.05,
-        fillColor='red',
-        color='black',
-        colorSpace='rgb',
-        opacity=None,
-        bold=True, italic=False,
-        padding=None,
-        anchor='center',
-        name='sameBttn',
-        size=(0.3,0.3),
-        units='norm')
+    # Textboxes
+    sameBox = visual.Rect(
+        win=win, name='sameBox',units='norm', 
+        width=(0.3, 0.3)[0], height=(0.3, 0.3)[1],
+        ori=0.0, pos=(-0.5, 0), anchor='center',
+        lineWidth=1.0,     colorSpace='rgb',  lineColor='green', fillColor='green',
+        opacity=None, depth=0.0, interpolate=True)
+    diffBox = visual.Rect(
+        win=win, name='diffBox',units='norm', 
+        width=(0.3, 0.3)[0], height=(0.3, 0.3)[1],
+        ori=0.0, pos=(0.5, 0), anchor='center',
+        lineWidth=1.0,     colorSpace='rgb',  lineColor='red', fillColor='red',
+        opacity=None, depth=-1.0, interpolate=True)
+    sameText = visual.TextStim(win=win, name='sameText',
+        text='Same',
+        font='Open Sans',
+        units='norm', pos=(-0.5, 0), height=0.05, wrapWidth=None, ori=0.0, 
+        color='black', colorSpace='rgb', opacity=None, 
+        languageStyle='LTR',
+        depth=-2.0)
+    diffText = visual.TextStim(win=win, name='diffText',
+        text='Different',
+        font='Open Sans',
+        units='norm', pos=(0.5, 0), height=0.05, wrapWidth=None, ori=0.0, 
+        color='black', colorSpace='rgb', opacity=None, 
+        languageStyle='LTR',
+        depth=-3.0)
 
     # Initiate audio
-    stream = sound.Sound(name='initializer', sampleRate=globalFs, stereo=True)
+    stream = sound.Sound(name='trial_audio', sampleRate=globalFs, stereo=True)
+
+    #mouse.status = STARTED
 
     # Create audio clicks
     clickDur = SETTINGS["click_dur"]
@@ -151,6 +148,12 @@ def run():
     # Start trials
     for thisTrial in trials:
 
+        # Trial variables
+        response = 'NA'
+        continueTrial = True
+        responseStarted = False
+        prevButtonState = mouse.getPressed()
+    
         # Load sound files
         cuesoundFile = thisTrial['cuesound']
         cueSound = read_wav(op.join(stimDir, cuesoundFile), new_fs=globalFs)
@@ -161,7 +164,7 @@ def run():
         if cuesoundFile == choicesoundFile:
             correctResponse = "same"
         else:
-            correctResponse = "different"
+            correctResponse = "diff"
         
         # Create audio stream. Embed choiceSound within the click train
         audStream = np.concatenate((cueSound, choice2cue_clickStream, choiceSound, clickStream))
@@ -172,28 +175,31 @@ def run():
         # Intertrial interval wait time
         thisTrialITI = randint(SETTINGS['iti'][0]*1000, high=SETTINGS['iti'][1]*1000)/1000
 
-        # Play the audio after ITI
-        stream = sound.Sound(audStream, name='trial_audio', sampleRate=globalFs, stereo=True)
-        stream.status == NOT_STARTED
+        # Set auditory stimulus
+        stream.setSound(audStream)
+
+        # keep track of which components have finished
+        trialComponents = [sameBox, diffBox, sameText, diffText, stream]
+        for thisComponent in trialComponents:
+            thisComponent.tStart = None
+            thisComponent.tStop = None
+            thisComponent.tStartRefresh = None
+            thisComponent.tStopRefresh = None
+            if hasattr(thisComponent, 'status'):
+                thisComponent.status = NOT_STARTED
+
+        # Start playing auditory stimulus
         stream.play(when=GetSecs()+thisTrialITI)
         
         # When audio starts to play send a TTL
         while not stream.isPlaying:
-            win.flip()
+            #win.flip()
+            pass
         soundOnset = core.getTime()
         send_ttl(ttl_code)
-        
-        # Set button statuses
+
+        # When to allow responses to start to appear
         tAllowResponse = soundOnset + responseStartTime
-        sameBttn.status = NOT_STARTED
-        sameBttn.tStart = tAllowResponse
-        sameBttn.tStop = 0
-        diffBttn.status = NOT_STARTED
-        diffBttn.tStart = tAllowResponse
-        diffBttn.tStop = 0
-        
-        response = 'NA'
-        continueTrial = True
         
         while continueTrial:
 
@@ -202,9 +208,12 @@ def run():
             tNextFlip = win.getFutureFlipTime()
             
             # Present two images/shape representing the choices when time is right
-            if tNow >= sameBttn.tStart and sameBttn.status == NOT_STARTED:
-                sameBttn.setAutoDraw(True)
-                diffBttn.setAutoDraw(True)
+            if tNow >= tAllowResponse and not responseStarted:
+                sameBox.setAutoDraw(True)
+                sameText.setAutoDraw(True)
+                diffBox.setAutoDraw(True)
+                diffText.setAutoDraw(True)
+                responseStarted = True
 
             # If too much time has passed then end the trial
             if not stream.isPlaying: #stream.status == FINISHED:
@@ -213,16 +222,22 @@ def run():
                 continueTrial = False
                 
             # Keep checking for if a button is pressed
-            if sameBttn.status == STARTED:
-
-                if myMouse.isPressedIn(sameBttn):
-                    response = "same"
-                    responseTime = tNow
-                    continueTrial = False
-                elif myMouse.isPressedIn(diffBttn):
-                    response = "different"
-                    responseTime = tNow
-                    continueTrial = False
+            buttons = mouse.getPressed()
+            if buttons != prevButtonState:  # button state changed?
+                prevButtonState = buttons
+                if sum(buttons) > 0:  # state changed to a new click
+                    # check if the mouse was inside our 'clickable' objects
+                    gotValidClick = False
+                    clickableList = environmenttools.getFromNames([sameBox, diffBox, sameText, diffText], namespace=locals())
+                    for obj in clickableList:
+                        # is this object clicked on?
+                        if obj.contains(mouse):
+                            gotValidClick = True
+                            objPressed = obj.name
+                            response = objPressed[0:4]
+                            responseTime = tNow
+                    if gotValidClick:
+                        continueTrial = False
                 
             # Wait for response. If <esc> pressed then exit task. If click train ends then end the trial
             keysPressed = kb.getKeys(keyList=["escape"])
@@ -248,16 +263,19 @@ def run():
         else:
             txtObj = noResponseText
 
+        # Draw feedback to screen and nothing else
         txtObj.setAutoDraw(True)
         crossFixation.setAutoDraw(False)
-        sameBttn.setAutoDraw(False)
-        diffBttn.setAutoDraw(False)
-
+        sameBox.setAutoDraw(False)
+        sameText.setAutoDraw(False)
+        diffBox.setAutoDraw(False)
+        diffText.setAutoDraw(False)
         tEnd = tNow + 3
         while tNow < tEnd:
             tNow = core.getTime()
             win.flip()
 
+        # Stop showing feedbadk and bring back the cross
         txtObj.setAutoDraw(False)
         crossFixation.setAutoDraw(True)
 
