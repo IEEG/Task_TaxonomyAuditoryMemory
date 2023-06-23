@@ -15,7 +15,7 @@ import os
 import numpy as np
 import psychopy
 import soundfile as sf
-from psychopy import visual, monitors, event, gui, core, logging
+from psychopy import visual, monitors, event, gui, core, logging, sound
 from psychopy.constants import NOT_STARTED, STARTED, FINISHED
 from psychopy.tools.monitorunittools import cm2pix
 from psychopy.tools.filetools import fromFile, toFile
@@ -35,6 +35,9 @@ def openingDlg():
 
     # Eyetracker options
     eyetrackerOpts = ['None','300','600','1200']
+    
+    # Response options
+    responseOpts = ["saccade", "mouse", "keyboard"]
 
     # Retrieve info and files
     _thisDir = os.path.dirname(os.path.abspath(__file__))
@@ -53,6 +56,8 @@ def openingDlg():
         dist = prevDlg['dist']
         ttlIdx = ttlOpts.index(prevDlg['ttl'])
         ttlOpts.insert(0,ttlOpts.pop(ttlIdx))
+        responseIdx = responseOpts.index(prevDlg['response'])
+        responseOpts.insert(0, responseOpts.pop(responseIdx))
         #diodeIdx = diodeOpts.index(prevDlg['photodiode'])
         #diodeOpts.insert(0,diodeOpts.pop(diodeIdx))
         etIdx = eyetrackerOpts.index(prevDlg['eyetracker'])
@@ -69,12 +74,14 @@ def openingDlg():
     runDlg.addField('Distance from screen (cm)', dist)
     runDlg.addField('TTL',choices=ttlOpts)
     runDlg.addField('Monitor',choices=monitorOpts)
+    runDlg.addField('Reponse Type', choices=responseOpts)
     #runDlg.addField('Photodiode',choices=diodeOpts)
     runDlg.addField('EyeTracker',choices=eyetrackerOpts)
     runDlg.addText(
         'Distance is only necessary if visual angle ("deg") is being used to calculate\nstimulus size or if you would like to calculate visual angle post-hoc')
     #fieldnames = ['runid','dist','ttl','monitor','photodiode','eyetracker']
-    fieldnames = ['runid','dist','ttl','monitor','eyetracker']
+    runDlg.addText("If response should be pressing a touchscreen, select 'mouse' as response type")
+    fieldnames = ['runid','dist','ttl','monitor','response','eyetracker']
 
     # If it doesn't exist, create logs folder
     logsFolder = _thisDir + os.sep + u'logs'
@@ -170,7 +177,7 @@ def setScreen(screen_res,scrWidth,fullScr,monName,dist=60, color="black"):
 
     return win, mon
 
-def create_audioStream(arr, soa, samplingRate, reps, blanks=[],prepare=True):
+def createAudioStream(arr, soa, samplingRate, reps, blanks=[],prepare=True):
     """
 
     Args:
@@ -316,3 +323,16 @@ def read_wav(filename, new_fs=48000, dual=True):
     else:
         return soundArray
         
+
+def createToneReps(value="A",tone_dur=0.05, blank_dur=0.05, reps=2, sampleRate=44100):
+    tmp = sound.Sound(value=value, secs=tone_dur, sampleRate=sampleRate,stereo=True, autoLog=False)
+    tone = tmp.sndArr
+    blank = np.zeros(( round(blank_dur*sampleRate), 2))
+    for ii in range(reps):
+        if ii == 0:
+            arr = tone
+        else:
+            arr = np.vstack((arr, tone))
+        arr = np.vstack((arr, blank))
+    return arr
+    

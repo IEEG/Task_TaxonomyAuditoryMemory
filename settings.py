@@ -5,5 +5,8 @@ SETTINGS = {
     "click_soa": 0.624, # Time between clicks,
     "click_dur": 0.01, # Duration of a single click
     "frameTolerance": 0.001,
-    "cue2choice_time": 0.624*5
+    "cue2choice_time": 0.624*5,
+    "tone_dur": 0.05,
+    "tone_reps": 15,
+    "tone_blank_dur": 0.05
 }
