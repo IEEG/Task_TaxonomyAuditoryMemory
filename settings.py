@@ -8,5 +8,6 @@ SETTINGS = {
     "cue2choice_time": 0.624*5,
     "tone_dur": 0.05,
     "tone_reps": 15,
-    "tone_blank_dur": 0.05
+    "tone_blank_dur": 0.05,
+    "response_fixation_time": 0.5
 }

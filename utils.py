@@ -53,10 +53,10 @@ def openingDlg():
         monIdx = monitorOpts.index(prevDlg['monitor'])
         monitorOpts.insert(0,monitorOpts.pop(monIdx))
         runId = prevDlg['runid']
-        dist = prevDlg['dist']
+        #dist = prevDlg['dist']
         ttlIdx = ttlOpts.index(prevDlg['ttl'])
         ttlOpts.insert(0,ttlOpts.pop(ttlIdx))
-        responseIdx = responseOpts.index(prevDlg['response'])
+        responseIdx = responseOpts.index(prevDlg['responseType'])
         responseOpts.insert(0, responseOpts.pop(responseIdx))
         #diodeIdx = diodeOpts.index(prevDlg['photodiode'])
         #diodeOpts.insert(0,diodeOpts.pop(diodeIdx))
@@ -65,23 +65,24 @@ def openingDlg():
 
     except:
         runId = ''
-        dist = 60
+        #dist = 60
 
     # Construct dialogue common to all
     dlgTitle = 'Please enter information below'
     runDlg = gui.Dlg(title=dlgTitle)
     runDlg.addField('RunID',runId)
-    runDlg.addField('Distance from screen (cm)', dist)
+    #runDlg.addField('Distance from screen (cm)', dist)
     runDlg.addField('TTL',choices=ttlOpts)
     runDlg.addField('Monitor',choices=monitorOpts)
     runDlg.addField('Reponse Type', choices=responseOpts)
     #runDlg.addField('Photodiode',choices=diodeOpts)
     runDlg.addField('EyeTracker',choices=eyetrackerOpts)
-    runDlg.addText(
-        'Distance is only necessary if visual angle ("deg") is being used to calculate\nstimulus size or if you would like to calculate visual angle post-hoc')
+    #runDlg.addText(
+    #    'Distance is only necessary if visual angle ("deg") is being used to calculate\nstimulus size or if you would like to calculate visual angle post-hoc')
     #fieldnames = ['runid','dist','ttl','monitor','photodiode','eyetracker']
     runDlg.addText("If response should be pressing a touchscreen, select 'mouse' as response type")
-    fieldnames = ['runid','dist','ttl','monitor','response','eyetracker']
+    # fieldnames = ['runid','dist','ttl','monitor','response','eyetracker']
+    fieldnames = ['runid','ttl','monitor','responseType','eyetracker']
 
     # If it doesn't exist, create logs folder
     logsFolder = _thisDir + os.sep + u'logs'
@@ -336,3 +337,65 @@ def createToneReps(value="A",tone_dur=0.05, blank_dur=0.05, reps=2, sampleRate=4
         arr = np.vstack((arr, blank))
     return arr
     
+def pauseAndReadText(win,TxtToWrite,mouse=None,txtColor = [0,0,0],keys=['escape'],wait=2):
+    """Displays a message to the screen. Waits until users presses the mouse button
+    or presses 'escape' on the keyboard
+
+    Args:
+        win: The window object for experiment
+        TxtToWrite: The message to be displayed in this instance
+        mouse: The mouse object
+        txtColor: The color the text should be
+
+    Returns:
+        Boolean value (True or False) for whether the task should continue.
+        Based on if the user clicked the mouse or clicked "escape" on the keyboard.
+
+    """
+    continueRoutine = True
+    pauseText = visual.TextStim(win = win, units = 'norm', height = 0.1,
+                pos = (0,0), text = TxtToWrite, alignHoriz = 'center',
+                alignVert = 'center', color = txtColor, wrapWidth=1.5, autoLog=False)
+    pauseText.setAutoDraw(True)
+    # If mouse given as argument
+    useMouse = False
+    from psychopy.event import Mouse
+    if isinstance(mouse,Mouse):
+        useMouse = True
+        mouseObj = mouse
+        mouseObj.status = NOT_STARTED
+        mouseObj.status = STARTED
+        prevButtonState = mouseObj.getPressed(0)  # if button is down already this ISN'T a new click
+
+    pauseText.setAutoDraw(True)
+    win.flip()
+    core.wait(wait)
+    
+    # Continue until a button is pressed
+    while continueRoutine:
+
+        if useMouse:
+            buttons = mouseObj.getPressed(0)
+            if buttons != prevButtonState:  # button state changed?
+                prevButtonState = buttons
+                if buttons:
+                    clickedBttn = 'mouse'
+                    continueRoutine = False
+
+
+        # check for a key press
+        keyPressed = event.getKeys(keyList=keys)
+        if any(keyPressed):
+            clickedBttn = keyPressed[0]
+            continueRoutine = False
+
+        if not continueRoutine:
+            pauseText.setAutoDraw(False)
+            pauseText.status = FINISHED
+            if useMouse:
+                mouseObj.status = FINISHED
+
+        win.flip()
+
+    win.flip()
+    return clickedBttn

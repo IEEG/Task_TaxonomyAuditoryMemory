@@ -18,10 +18,10 @@ import os
 import os.path as op
 import pandas as pd
 import sys
-from psychtoolbox import GetSecs
+from psychtoolbox import GetSecs, WaitSecs
 from psychopy import core, event, visual, sound, logging, gui
 from psychopy.hardware import keyboard
-from psychopy.tools import environmenttools
+#from psychopy.tools import environmenttools
 from psychopy.data import ExperimentHandler, TrialHandler2
 from psychopy.constants import NOT_STARTED, STARTED, FINISHED
 import tobii_research as tobii
@@ -31,44 +31,47 @@ import tobii_research as tobii
 _thisDir = op.dirname(op.abspath(__file__))
 logDir = op.join(_thisDir, 'logs')
 stimDir = op.join(_thisDir, 'stimuli')
-from utils import openingDlg, set_ttl, createAudioStream, setScreen, read_wav, createToneReps
+from utils import openingDlg, set_ttl, createAudioStream, setScreen, read_wav, createToneReps, pauseAndReadText
 from settings import SETTINGS
 
 # Callback function for tobii eyetracker
 def gaze_callback(gazedata):
-    cdata = np.empty((1,32))
-    cdata[0,0] = gazedata._GazeData__device_time_stamp / 1000000
-    cdata[0,1] = gazedata._GazeData__system_time_stamp / 1000000
-    cdata[0,2] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__position_in_track_box_coordinates[0]
-    cdata[0,3] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__position_in_track_box_coordinates[1]
-    cdata[0,4] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__position_in_track_box_coordinates[2]
-    cdata[0,5] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__position_in_user_coordinates[0]
-    cdata[0,6] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__position_in_user_coordinates[1]
-    cdata[0,7] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__position_in_user_coordinates[2]
-    cdata[0,8] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__validity
-    cdata[0,9] = gazedata._GazeData__left._EyeData__gaze_point._GazePoint__position_in_user_coordinates[0]
-    cdata[0,10] = gazedata._GazeData__left._EyeData__gaze_point._GazePoint__position_in_user_coordinates[1]
-    cdata[0,11] = gazedata._GazeData__left._EyeData__gaze_point._GazePoint__position_in_user_coordinates[2]
-    cdata[0,12] = gazedata._GazeData__left._EyeData__gaze_point._GazePoint__position_on_display_area[0]
-    cdata[0,13] = gazedata._GazeData__left._EyeData__gaze_point._GazePoint__position_on_display_area[1]
-    cdata[0,14] = gazedata._GazeData__left._EyeData__gaze_point._GazePoint__validity
-    cdata[0,15] = gazedata._GazeData__left._EyeData__pupil_data._PupilData__diameter
-    cdata[0,16] = gazedata._GazeData__left._EyeData__pupil_data._PupilData__validity
-    cdata[0,17] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__position_in_track_box_coordinates[0]
-    cdata[0,18] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__position_in_track_box_coordinates[1]
-    cdata[0,19] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__position_in_track_box_coordinates[2]
-    cdata[0,20] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__position_in_user_coordinates[0]
-    cdata[0,21] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__position_in_user_coordinates[1]
-    cdata[0,22] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__position_in_user_coordinates[2]
-    cdata[0,23] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__validity
-    cdata[0,24] = gazedata._GazeData__right._EyeData__gaze_point._GazePoint__position_in_user_coordinates[0]
-    cdata[0,25] = gazedata._GazeData__right._EyeData__gaze_point._GazePoint__position_in_user_coordinates[1]
-    cdata[0,26] = gazedata._GazeData__right._EyeData__gaze_point._GazePoint__position_in_user_coordinates[2]
-    cdata[0,27] = gazedata._GazeData__right._EyeData__gaze_point._GazePoint__position_on_display_area[0]
-    cdata[0,28] = gazedata._GazeData__right._EyeData__gaze_point._GazePoint__position_on_display_area[1]
-    cdata[0,29] = gazedata._GazeData__right._EyeData__gaze_point._GazePoint__validity
-    cdata[0,30] = gazedata._GazeData__right._EyeData__pupil_data._PupilData__diameter
-    cdata[0,31] = gazedata._GazeData__right._EyeData__pupil_data._PupilData__validity
+    cdata = np.empty((1,33))
+    #cdata[0,0] = gazedata._GazeData__device_time_stamp / 1000000
+    #cdata[0,1] = gazedata._GazeData__system_time_stamp / 1000000
+    cdata[0,0] = core.getTime()
+    cdata[0,1] = gazedata._GazeData__device_time_stamp
+    cdata[0,2] = gazedata._GazeData__system_time_stamp
+    cdata[0,3] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__position_in_track_box_coordinates[0]
+    cdata[0,4] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__position_in_track_box_coordinates[1]
+    cdata[0,5] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__position_in_track_box_coordinates[2]
+    cdata[0,6] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__position_in_user_coordinates[0]
+    cdata[0,7] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__position_in_user_coordinates[1]
+    cdata[0,8] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__position_in_user_coordinates[2]
+    cdata[0,9] = gazedata._GazeData__left._EyeData__gaze_origin._GazeOrigin__validity
+    cdata[0,10] = gazedata._GazeData__left._EyeData__gaze_point._GazePoint__position_in_user_coordinates[0]
+    cdata[0,11] = gazedata._GazeData__left._EyeData__gaze_point._GazePoint__position_in_user_coordinates[1]
+    cdata[0,12] = gazedata._GazeData__left._EyeData__gaze_point._GazePoint__position_in_user_coordinates[2]
+    cdata[0,13] = gazedata._GazeData__left._EyeData__gaze_point._GazePoint__position_on_display_area[0]
+    cdata[0,14] = gazedata._GazeData__left._EyeData__gaze_point._GazePoint__position_on_display_area[1]
+    cdata[0,15] = gazedata._GazeData__left._EyeData__gaze_point._GazePoint__validity
+    cdata[0,16] = gazedata._GazeData__left._EyeData__pupil_data._PupilData__diameter
+    cdata[0,17] = gazedata._GazeData__left._EyeData__pupil_data._PupilData__validity
+    cdata[0,18] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__position_in_track_box_coordinates[0]
+    cdata[0,19] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__position_in_track_box_coordinates[1]
+    cdata[0,20] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__position_in_track_box_coordinates[2]
+    cdata[0,21] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__position_in_user_coordinates[0]
+    cdata[0,22] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__position_in_user_coordinates[1]
+    cdata[0,23] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__position_in_user_coordinates[2]
+    cdata[0,24] = gazedata._GazeData__right._EyeData__gaze_origin._GazeOrigin__validity
+    cdata[0,25] = gazedata._GazeData__right._EyeData__gaze_point._GazePoint__position_in_user_coordinates[0]
+    cdata[0,26] = gazedata._GazeData__right._EyeData__gaze_point._GazePoint__position_in_user_coordinates[1]
+    cdata[0,27] = gazedata._GazeData__right._EyeData__gaze_point._GazePoint__position_in_user_coordinates[2]
+    cdata[0,28] = gazedata._GazeData__right._EyeData__gaze_point._GazePoint__position_on_display_area[0]
+    cdata[0,29] = gazedata._GazeData__right._EyeData__gaze_point._GazePoint__position_on_display_area[1]
+    cdata[0,30] = gazedata._GazeData__right._EyeData__gaze_point._GazePoint__validity
+    cdata[0,31] = gazedata._GazeData__right._EyeData__pupil_data._PupilData__diameter
+    cdata[0,32] = gazedata._GazeData__right._EyeData__pupil_data._PupilData__validity
     global ETdata
     ETdata = np.append(ETdata,cdata, axis=0)
 
@@ -98,7 +101,7 @@ def run():
     # Setup the Window, Keyboard, Mouse
     win, mon = setScreen(
         expInfo['screen_resolution'], expInfo['monitor_width'], expInfo['full_screen'], expInfo['monitor'],
-        color='black', dist=expInfo['dist'])
+        color='black')
     kb = keyboard.Keyboard()
     mouse = event.Mouse(win=win)
     mouse.setVisible(1)
@@ -111,7 +114,7 @@ def run():
         ori=0, pos=(0, 0),
         lineWidth=0, lineColor='white', lineColorSpace='rgb',
         fillColor='white', fillColorSpace='rgb', opacity=1, interpolate=True)
-    crossFixation.setAutoDraw(True)
+    
 
     filename = expInfo['outputDir'] + os.sep + expInfo['runid']
     
@@ -147,30 +150,30 @@ def run():
     # Textboxes
     sameBox = visual.Rect(
         win=win, name='sameBox',
-#        units='norm', 
-#        width=(0.3, 0.3)[0], 
-#        height=(0.3, 0.3)[1],
-        units='pix',
-        width=400,
-        height=400,
+        units='norm', 
+        width=(0.3, 0.3)[0], 
+        height=(0.3, 0.3)[1],
+#        units='pix',
+#        width=400,
+#        height=400,
         ori=0.0, 
-        #pos=(-0.5, 0), 
-        pos=(-864,558),
-        anchor='center',
+        pos=(-0.5, 0), 
+        # pos=(-864,558),
+        #anchor='center',
         lineWidth=1.0, colorSpace='rgb',  lineColor='green', fillColor='green',
         opacity=None, depth=0.0, interpolate=True)
     diffBox = visual.Rect(
         win=win, name='diffBox',
-#        units='norm', 
-#        width=(0.3, 0.3)[0], 
-#        height=(0.3, 0.3)[1],
-        units='pix',
-        width=400,
-        height=400,
+        units='norm', 
+        width=(0.3, 0.3)[0], 
+        height=(0.3, 0.3)[1],
+#        units='pix',
+#        width=400,
+#        height=400,
         ori=0.0, 
-        #pos=(0.5, 0), 
-        pos=(864,558),
-        anchor='center',
+        pos=(0.5, 0), 
+        #pos=(864,558),
+        #anchor='center',
         lineWidth=1.0, colorSpace='rgb',  lineColor='red', fillColor='red',
         opacity=None, depth=-1.0, interpolate=True)
     sameText = visual.TextStim(win=win, name='sameText',
@@ -189,7 +192,7 @@ def run():
         depth=-3.0)
 
     # Initiate audio
-    stream = sound.Sound(name='trial_audio', sampleRate=globalFs, stereo=True)
+    stream = sound.Sound(name='trial_audio', sampleRate=globalFs, stereo=True, syncToWin=win)
 
     #mouse.status = STARTED
 
@@ -214,17 +217,40 @@ def run():
             os.system('{}TobiiProEyeTrackerManager.exe --device-sn={} --mode={}'.format(tracker_manager_path, serial_number, mode))
         ETdataFilePath = filename + '_et.csv'
         # initiate data frame for eyetracker data
-        ETcolumns = 'deviceTimeStampInSec,systemTimeStampInSec,xLeftGazeOriginInTrackboxCoords,yLeftGazeOriginInTrackboxCoords,zLeftGazeOriginInTrackboxCoords,xLeftGazeOriginInUserCoords,yLeftGazeOriginInUserCoords,zLeftGazeOriginInUserCoords,leftGazeOriginValidity,xLeftGazePositionInUserCoords,yLeftGazePositionInUserCoords,zLeftGazePositionInUserCoords,xLeftGazePositionOnDisplay,yLeftGazePositionOnDisplay,leftGazePointValidity,leftPupilDiameter,leftPupilValidity,xRightGazeOriginInTrackboxCoords,yRightGazeOriginInTrackboxCoords,zRightGazeOriginInTrackboxCoords,xRightGazeOriginInUserCoords,yRightGazeOriginInUserCoords,zRightGazeOriginInUserCoords,rightGazeOriginValidity,xRightGazePositionInUserCoords,yRightGazePositionInUserCoords,zRightGazePositionInUserCoords,xRightGazePositionOnDisplay,yRightGazePositionOnDisplay,rightGazePointValidity,rightPupilDiameter,rightPupilValidity'
-        ETdata = np.empty((0,32))
+        # ETcolumns = 'deviceTimeStampInSec,systemTimeStampInSec,xLeftGazeOriginInTrackboxCoords,yLeftGazeOriginInTrackboxCoords,zLeftGazeOriginInTrackboxCoords,xLeftGazeOriginInUserCoords,yLeftGazeOriginInUserCoords,zLeftGazeOriginInUserCoords,leftGazeOriginValidity,xLeftGazePositionInUserCoords,yLeftGazePositionInUserCoords,zLeftGazePositionInUserCoords,xLeftGazePositionOnDisplay,yLeftGazePositionOnDisplay,leftGazePointValidity,leftPupilDiameter,leftPupilValidity,xRightGazeOriginInTrackboxCoords,yRightGazeOriginInTrackboxCoords,zRightGazeOriginInTrackboxCoords,xRightGazeOriginInUserCoords,yRightGazeOriginInUserCoords,zRightGazeOriginInUserCoords,rightGazeOriginValidity,xRightGazePositionInUserCoords,yRightGazePositionInUserCoords,zRightGazePositionInUserCoords,xRightGazePositionOnDisplay,yRightGazePositionOnDisplay,rightGazePointValidity,rightPupilDiameter,rightPupilValidity'
+        ETcolumns = 'expTime,deviceTimeStamp,systemTimeStamp,xLeftGazeOriginInTrackboxCoords,yLeftGazeOriginInTrackboxCoords,zLeftGazeOriginInTrackboxCoords,xLeftGazeOriginInUserCoords,yLeftGazeOriginInUserCoords,zLeftGazeOriginInUserCoords,leftGazeOriginValidity,xLeftGazePositionInUserCoords,yLeftGazePositionInUserCoords,zLeftGazePositionInUserCoords,xLeftGazePositionOnDisplay,yLeftGazePositionOnDisplay,leftGazePointValidity,leftPupilDiameter,leftPupilValidity,xRightGazeOriginInTrackboxCoords,yRightGazeOriginInTrackboxCoords,zRightGazeOriginInTrackboxCoords,xRightGazeOriginInUserCoords,yRightGazeOriginInUserCoords,zRightGazeOriginInUserCoords,rightGazeOriginValidity,xRightGazePositionInUserCoords,yRightGazePositionInUserCoords,zRightGazePositionInUserCoords,xRightGazePositionOnDisplay,yRightGazePositionOnDisplay,rightGazePointValidity,rightPupilDiameter,rightPupilValidity'        
+        ETdata = np.empty((0,33))
         with open(ETdataFilePath, 'ab') as csvfile:
             np.savetxt(csvfile,ETdata,delimiter=',',header=ETcolumns)
-        eyetracker.subscribe_to(tobii.EYETRACKER_GAZE_DATA,gaze_callback)
     
     win.flip()
     
-    # Start trials
+    # Show instructions
+    instructions = "Two tones will play. After the second tone, decide whether the two tones are the same or different. If the two tones are the same <fill1>. If the sounds are different then <fill2>.\nPress <space> to start"
+    if expInfo['responseType'] == 'eyetracker':
+        instructions = instructions.replace("<fill1>", "look at the 'Same' box on the screen") 
+        instructions = instructions.replace("<fill2>", "look at the 'Different' box on the screen") 
+    elif expInfo['responseType'] == 'keyboard':
+        instructions = instructions.replace("<fill1>", "press the 'C' key on the keyboard") 
+        instructions = instructions.replace("<fill2>", "press the 'M' key on the keyboard") 
+    elif expInfo['responseType'] == 'mouse':
+        instructions = instructions.replace("<fill1>", "click the 'Same' box on the screen") 
+        instructions = instructions.replace("<fill2>", "clickthe 'Different' box on the screen") 
+    
+    key = pauseAndReadText(win, instructions, mouse=None, txtColor=[1, 1, 1], keys=['space', 'escape'], wait=0)
+    if key == 'escape':
+        close_ttl()
+        win.close()
+        if expInfo['eyetracker']!='None':
+            eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
+        thisExp.abort()
+        core.quit()
+    
+# Start trials
     for thisTrial in trials:
 
+        crossFixation.setAutoDraw(True)
+        
         # Trial variables
         response = 'NA'
         continueTrial = True
@@ -271,44 +297,123 @@ def run():
             if hasattr(thisComponent, 'status'):
                 thisComponent.status = NOT_STARTED
 
+        # Start eyetracker
+        if expInfo['eyetracker']!='None':
+            WaitSecs(1)
+            thisTrialITI -= 1
+            eyetracker.subscribe_to(tobii.EYETRACKER_GAZE_DATA,gaze_callback)
+            
         # Start playing auditory stimulus
-        stream.play(when=GetSecs()+thisTrialITI)
+        #stream.play(when=GetSecs()+thisTrialITI)
+        tNow = core.getTime()
+        #tStartAudio = GetSecs()+thisTrialITI
+        tStartAudio = tNow+thisTrialITI
         
         # When audio starts to play send a TTL
-        while not stream.isPlaying:
-            #win.flip()
-            pass
-        soundOnset = core.getTime()
-        send_ttl(ttl_code)
+        keep_going = True
+        while keep_going:
+            tNow = core.getTime()
+            tNextFlip = win.getFutureFlipTime(clock=None)
+            
+            if stream.status == STARTED:
+                keep_going = False
+            
+            if tNextFlip >= tStartAudio and stream.status == NOT_STARTED:
+                stream.play(when=win)
+                win.callOnFlip(send_ttl, ttl_code)
+                win.timeOnFlip(stream, 'tStartRefresh')
+                
+            if keep_going:
+                win.flip()
+            
+#        while stream.status == NOT_STARTED:
+#            #win.flip()
+#            pass
+#        soundOnset = GetSecs() #core.getTime()
+#        send_ttl(ttl_code)
 
         # When to allow responses to start to appear
+        soundOnset = stream.tStartRefresh
         tAllowResponse = soundOnset + responseStartTime
         
         while continueTrial:
 
             # Current time
             tNow = core.getTime()
-            tNextFlip = win.getFutureFlipTime()
+            tNextFlip = win.getFutureFlipTime(clock=None)
+            
+            # Check if it's time to start audio
+            if tNextFlip >= tStartAudio and stream.status == NOT_STARTED:
+                stream.play(when=win)
+                win.callOnFlip(send_ttl, ttl_code)
+                win.timeOnFlip(stream, 'tStartRefresh')
             
             # Present two images/shape representing the choices when time is right
-            if tNow >= tAllowResponse and not responseStarted:
+            if tNextFlip >= tAllowResponse and not responseStarted:
                 sameBox.setAutoDraw(True)
                 sameText.setAutoDraw(True)
                 diffBox.setAutoDraw(True)
                 diffText.setAutoDraw(True)
                 responseStarted = True
+                win.timeOnFlip(sameBox, 'tStartRefresh')
 
             # If too much time has passed then end the trial
-            if not stream.isPlaying: #stream.status == FINISHED:
+            if stream.status == FINISHED:
                 response = "NA"
                 responseTime = 0
                 continueTrial = False
+                stream.tStopRefresh = tNow
                 
             # Check for pressed keys on keyboard
             keysPressed = kb.getKeys(keyList=["escape","c","m"])
             
+            if expInfo['responseType'] == 'eyetracker':
+                # check for target fixation
+                fix = expInfo['response_fixation_time']
+                if expInfo['eyetracker'] != 'None' and sameBox.status == STARTED:
+                    if (tNow - lastETtime) > 0.1 and ETdata.shape[0]>(fix*int(expInfo['eyetracker'])):
+                        # get the last gaze positions
+                        index = ETdata.shape[0]-1
+                        xleft = ETdata[(index-int(fix*int(expInfo['eyetracker']))):index,12]
+                        yleft = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,13]
+                        xright = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,27]
+                        yright = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,28]
+                        
+                        # Check if eyes are in the box indicating "same"
+                        isInSameBox = np.nanmean(xleft)>=sameBox['xlim'][0]\
+                        and np.nanmean(xleft)<=sameBox['xlim'][1]\
+                        and np.nanmean(xright)>=sameBox['xlim'][0]\
+                        and np.nanmean(xright)<=sameBox['xlim'][1]\
+                        and np.nanmean(yleft)>=sameBox['ylim'][0]\
+                        and np.nanmean(yleft)<=sameBox['ylim'][1]\
+                        and np.nanmean(yright)>=sameBox['ylim'][0]\
+                        and np.nanmean(yright)<=sameBox['ylim'][1]
+                        
+                        # Check if eyes are in the box indicating "different"
+                        isInDiffBox = np.nanmean(xleft)>=diffBox['xlim'][0]\
+                        and np.nanmean(xleft)<=diffBox['xlim'][1]\
+                        and np.nanmean(xright)>=diffBox['xlim'][0]\
+                        and np.nanmean(xright)<=diffBox['xlim'][1]\
+                        and np.nanmean(yleft)>=diffBox['ylim'][0]\
+                        and np.nanmean(yleft)<=diffBox['ylim'][1]\
+                        and np.nanmean(yright)>=diffBox['ylim'][0]\
+                        and np.nanmean(yright)<=diffBox['ylim'][1]
+                        
+                        if isInSameBox:
+                            responseTime = tNow - fix
+                            response = 'same'
+                            continueTrial = False
+                            win.callOnFlip(stream.stop)
+                            win.timeOnFlip(stream, 'tStopRefresh')
+                        elif isinDiffBox:
+                            responseTime = tNow - fix
+                            response = 'diff'
+                            continueTrial = False
+                            win.callOnFlip(stream.stop)
+                            win.timeOnFlip(stream, 'tStopRefresh')
+            
             # Look for mouse button press
-            if expInfo['response'] == 'mouse':
+            if expInfo['responseType'] == 'mouse' and sameBox.status == STARTED:
                 # Keep checking for if a button is pressed
                 buttons = mouse.getPressed()
                 if buttons != prevButtonState:  # button state changed?
@@ -316,7 +421,8 @@ def run():
                     if sum(buttons) > 0:  # state changed to a new click
                         # check if the mouse was inside our 'clickable' objects
                         gotValidClick = False
-                        clickableList = environmenttools.getFromNames([sameBox, diffBox, sameText, diffText], namespace=locals())
+                        #clickableList = environmenttools.getFromNames([sameBox, diffBox, sameText, diffText], namespace=locals
+                        clickableList = [sameBox, diffBox, sameText, diffText]
                         for obj in clickableList:
                             # is this object clicked on?
                             if obj.contains(mouse):
@@ -326,18 +432,24 @@ def run():
                                 responseTime = tNow
                         if gotValidClick:
                             continueTrial = False
-                
-            # If keyboard if used for response
-            elif['response'] == 'keyboard':
-                if keysPressed == ["c"]:
-                    response == "same"
-                    responseTime = tNow
-                    continueTrial = False
-                elif keysPressed == ["m"]:
-                    response == "diff"
-                    responseTime = tNow
-                    continueTrial = False
+                            win.callOnFlip(stream.stop)
+                            win.timeOnFlip(stream, 'tStopRefresh')
             
+            # If keyboard if used for response
+            elif expInfo['responseType'] == 'keyboard' and sameBox.status == STARTED:
+                if keysPressed == ["c"]:
+                    response = "same"
+                    responseTime = tNow
+                    continueTrial = False
+                    win.callOnFlip(stream.stop)
+                    win.timeOnFlip(stream, 'tStopRefresh')
+                elif keysPressed == ["m"]:
+                    response = "diff"
+                    responseTime = tNow
+                    continueTrial = False
+                    win.callOnFlip(stream.stop)
+                    win.timeOnFlip(stream, 'tStopRefresh')
+                    
             # If <esc> pressed then exit task. If click train ends then end the trial
             if keysPressed == ["escape"]:
                 close_ttl()
@@ -351,11 +463,12 @@ def run():
                     eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
                 thisExp.abort()
                 core.quit()
-                
-            win.flip()
+                        
+            if continueTrial:
+                win.flip()
 
 
-        stream.stop()
+        #stream.stop()
         
         # Display feedback
         if response == correctResponse:
@@ -367,24 +480,40 @@ def run():
 
         # Draw feedback to screen and nothing else
         txtObj.setAutoDraw(True)
+        txtObj.tStartRefresh = None
         crossFixation.setAutoDraw(False)
         sameBox.setAutoDraw(False)
         sameText.setAutoDraw(False)
         diffBox.setAutoDraw(False)
         diffText.setAutoDraw(False)
         tEnd = tNow + 3
-        while tNow < tEnd:
+        continueFeedback = True
+        win.timeOnFlip(txtObj, 'tStartRefresh')
+        while continueFeedback:
             tNow = core.getTime()
-            win.flip()
-
+            if tEnd <= tNow:
+                continueFeedback = False
+            else:
+                win.flip()
+            
+        # unsubscribe from eyetracker
+        if expInfo['eyetracker']!='None':
+            eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
+            with open(ETdataFilePath, 'ab') as csvfile:
+                np.savetxt(csvfile,ETdata,delimiter=',')
+            # re-initiate data frame for eyetracker data
+            ETdata = np.empty((0,33))
+        
         # Stop showing feedbadk and bring back the cross
         txtObj.setAutoDraw(False)
         crossFixation.setAutoDraw(True)
 
         # Append trial info
-        trials.addData('audio_onset', soundOnset)
-        trials.addData('response_time', responseTime)
-        trials.addData('response', response)
+        thisExp.addData('audio_onset', stream.tStartRefresh)
+        thisExp.addData('audio_offset', stream.tStopRefresh)
+        thisExp.addData('display_feedback', txtObj.tStartRefresh)
+        thisExp.addData('response_time', responseTime)
+        thisExp.addData('response', response)
         thisExp.nextEntry()
     
     # Task over. Close everything
