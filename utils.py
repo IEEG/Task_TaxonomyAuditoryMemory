@@ -63,7 +63,8 @@ def openingDlg():
         etIdx = eyetrackerOpts.index(prevDlg['eyetracker'])
         eyetrackerOpts.insert(0,eyetrackerOpts.pop(etIdx))
 
-    except:
+    except Exception as error:
+        print(error)
         runId = ''
         #dist = 60
 
@@ -399,3 +400,40 @@ def pauseAndReadText(win,TxtToWrite,mouse=None,txtColor = [0,0,0],keys=['escape'
 
     win.flip()
     return clickedBttn
+
+def generate_tone_sequence(coherence, frequency, frequency_range, sampleRate=44100, tone_duration=0.025, sequence_duration=0.5):
+    # Example usage:
+    #snd = generate_tone_sequence(coherence=0.9, frequency=4000, frequency_range=1, sampleRate=44100)
+    num_tones = int(sequence_duration / tone_duration)
+    num_coherent_tones = int(num_tones * coherence)
+
+    # Generate the coherent tone sequence
+    coherent_tones_tmp = [sound.Sound(value=frequency, secs=tone_duration, sampleRate=sampleRate, stereo=True, hamming=True) for _ in range(num_coherent_tones)]
+    coherent_tones = []
+    for ii in range( len(coherent_tones_tmp) ):
+        coherent_tones.append(coherent_tones_tmp[ii].sndArr)
+
+    # Generate the incoherent tone sequence with octave-based spacing
+    incoherent_tones = []
+    for ii in range(num_tones - num_coherent_tones):
+        random_octave_shift = np.random.uniform(-1, 1)
+        random_frequency = frequency * 2 ** (random_octave_shift * frequency_range)
+        tmp = sound.Sound(value=random_frequency, secs=tone_duration, hamming=True, sampleRate=sampleRate, stereo=True)
+        #tmpSnd = tmp.sndArr
+        #incoherent_tones.append(sound.Sound(value=random_frequency, secs=tone_duration, hamming=True))
+        incoherent_tones.append(tmp.sndArr)
+
+    # Combine the coherent and incoherent tone sequences
+    tone_sequence = coherent_tones + incoherent_tones
+    np.random.shuffle(tone_sequence)
+    
+    # Now put all the tones together to make a single sound
+    for ii in range( len(tone_sequence) ):
+        if ii == 0:
+            arr = tone_sequence[0]
+        else:
+            arr = np.vstack((arr, tone_sequence[ii]))
+            
+    return arr
+    #return sound.Sound(value=arr, sampleRate=sampleRate, hamming=False)
+

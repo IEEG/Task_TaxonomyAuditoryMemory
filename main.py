@@ -31,7 +31,7 @@ import tobii_research as tobii
 _thisDir = op.dirname(op.abspath(__file__))
 logDir = op.join(_thisDir, 'logs')
 stimDir = op.join(_thisDir, 'stimuli')
-from utils import openingDlg, set_ttl, createAudioStream, setScreen, read_wav, createToneReps, pauseAndReadText
+from utils import openingDlg, set_ttl, createAudioStream, setScreen, read_wav, createToneReps, pauseAndReadText, generate_tone_sequence
 from settings import SETTINGS
 
 # Callback function for tobii eyetracker
@@ -257,20 +257,35 @@ def run():
         responseStarted = False
         prevButtonState = mouse.getPressed()
     
-        # Load sound files
+        # Load sound files (when they're wav files)
         #cuesoundFile = thisTrial['cuesound']
         #cueSound = read_wav(op.join(stimDir, cuesoundFile), new_fs=globalFs)
         #choicesoundFile = thisTrial['choicesound']
         #choiceSound = read_wav(op.join(stimDir, choicesoundFile), new_fs=globalFs)
         
-        # Create sounds
-        cuesound = thisTrial["cuesound"]
-        cueSound = createToneReps(value=cuesound, tone_dur=SETTINGS['tone_dur'], blank_dur=SETTINGS['tone_blank_dur'], reps=SETTINGS['tone_reps'], sampleRate=globalFs)
-        choicesound = thisTrial["choicesound"]
-        choiceSound = createToneReps(value=choicesound, tone_dur=SETTINGS['tone_dur'], blank_dur=SETTINGS['tone_blank_dur'], reps=SETTINGS['tone_reps'], sampleRate=globalFs)
+        # Create sounds (tones)
+        #cuesound = thisTrial["cuesound"]
+        #cueSound = createToneReps(value=cuesound, tone_dur=SETTINGS['tone_dur'], blank_dur=SETTINGS['tone_blank_dur'], reps=SETTINGS['tone_reps'], sampleRate=globalFs)
+        #choicesound = thisTrial["choicesound"]
+        #choiceSound = createToneReps(value=choicesound, tone_dur=SETTINGS['tone_dur'], blank_dur=SETTINGS['tone_blank_dur'], reps=SETTINGS['tone_reps'], sampleRate=globalFs)
+        
+        # Create sounds (frequencies)
+        cuesound_id = str(thisTrial["cue_frequency"]) + "_" + str(thisTrial["cue_frequency_range"])
+        cueSound = generate_tone_sequence(
+            coherence=0.9, 
+            frequency=thisTrial["cue_frequency"],
+            frequency_range=thisTrial["cue_frequency_range"],
+            sampleRate=globalFs)
+        choicesound_id = str(thisTrial["choice_frequency"]) + "_" + str(thisTrial["choice_frequency_range"])
+        choiceSound = generate_tone_sequence(
+            coherence=0.9, 
+            frequency=thisTrial["choice_frequency"],
+            frequency_range=thisTrial["choice_frequency_range"],
+            sampleRate=globalFs)
+        #arr = generate_tone_sequence(coherence=0.9, frequency=4000, frequency_range=1, sampleRate=44100)
         
         # Check what the correct response to this trial should be
-        if cuesound == choicesound:
+        if cuesound_id == choicesound_id: #cuesound == choicesound:
             correctResponse = "same"
         else:
             correctResponse = "diff"
