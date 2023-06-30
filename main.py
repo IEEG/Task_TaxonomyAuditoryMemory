@@ -75,6 +75,121 @@ def gaze_callback(gazedata):
     global ETdata
     ETdata = np.append(ETdata,cdata, axis=0)
 
+def ETvalidation(win,eyetracker,etFrequency):
+    # just give it the window and eyetracker objects created in the main script as well as the frequency that the eyetracker is set to
+    # get an output variable from this which will tell you if you should continue the experiment after validation
+    # TO DO: still needs to capture the time stamps of the validation points first being shown and return them
+    
+    continueValidation = True
+    continueExp = True
+    validationPoints = np.array([[-.25,-.25],[.25,-.25],[-.25,.25],[.25,.25]])*win.size
+    
+    point = visual.Circle(
+        win=win, name='point',
+#        win.size[0]*0.00003, win.size[0]*0.00003
+        size=(15,15), pos=(0, 0), lineWidth=1.0, colorSpace='rgb', lineColor='white', fillColor='white',
+        opacity=None, depth=0.0, interpolate=True, units='pix')
+    circle = visual.Circle(
+        win=win, name='point',
+        size=(0, 0), pos=(0, 0), lineWidth=5.0, colorSpace='rgb', lineColor='white', fillColor=None,
+        opacity=None, depth=0.0, interpolate=True, units='pix')
+    
+    eyedotsLeft = np.empty((0,2))
+    eyedotsRight = np.empty((0,2))
+    times = np.empty((4,2))
+    eyetracker.subscribe_to(tobii.EYETRACKER_GAZE_DATA,gaze_callback)
+    
+    Inst = visual.TextStim(win = win, units = 'norm', height = 0.1,
+                pos = (0,0), text = 'Look at the dots!', alignHoriz = 'center',
+                alignVert = 'center', color = 'white', wrapWidth=1.5, autoLog=False)
+    Inst.draw()
+    win.flip()
+    core.wait(2)
+    
+    for i in range(validationPoints.shape[0]):
+        point.setPos(validationPoints[i,:])
+        circle.setPos(validationPoints[i,:])
+        tStart = core.getTime()
+        tStartET = ETdata[-1,0]
+        tNow = core.getTime()
+        point.setAutoDraw(True)
+        circle.setAutoDraw(True)
+        while tNow <= tStart + 2:
+            size = 100*(1-(tNow-tStart)*0.5)
+            if size < 0:
+                size = 0
+            circle.setSize([size,size])
+            win.flip()
+            tNow = core.getTime()
+        eyedotsLeft = np.append(eyedotsLeft,ETdata[ETdata.shape[0]-int(1.5*etFrequency):ETdata.shape[0],13:15],axis=0)
+        eyedotsRight = np.append(eyedotsRight,ETdata[ETdata.shape[0]-int(1.5*etFrequency):ETdata.shape[0],28:30],axis=0)
+        times[i,0] = tStart
+        times[i,1] = tStartET
+        core.wait(0.4)
+    point.setAutoDraw(False)
+    circle.setAutoDraw(False)
+    eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
+    
+    # average samples
+    avgLeft = np.empty((0,2))
+    avgRight = np.empty((0,2))
+    for i in range(int(eyedotsLeft.shape[0]/50)):
+        sample = eyedotsLeft[i*50:(i+1)*50]
+        avgLeft = np.append(avgLeft,np.reshape(np.nanmean(sample,axis=0),(1,2)),axis=0)
+        sample = eyedotsRight[i*50:(i+1)*50]
+        avgRight = np.append(avgRight,np.reshape(np.nanmean(sample,axis=0),(1,2)),axis=0)
+    
+    # show validation results
+    dotsRight = visual.ElementArrayStim(win=win,
+                        name="dotsRight",
+                        nElements=avgRight.shape[0],
+                        colors='blue',
+                        sizes=[10,10],
+                        xys=(avgRight-0.5)*win.size,
+                        elementMask='circle',
+                        elementTex=None,
+                        units='pix')
+    dotsLeft = visual.ElementArrayStim(win=win,
+                        name="dotsLeft",
+                        nElements=avgLeft.shape[0],
+                        colors='green',
+                        sizes=[10,10],
+                        xys=(avgLeft-0.5)*win.size,
+                        elementMask='circle',
+                        elementTex=None,
+                        units='pix')
+    allValidationPoints = visual.ElementArrayStim(win=win,
+                        name="validationPoints",
+                        nElements=4,
+                        colors='white',
+                        sizes=[10,10],
+                        xys=validationPoints,
+                        elementMask='circle',
+                        elementTex=None,
+                        units='pix')
+
+    validationText = visual.TextStim(win = win, units = 'norm', height = 0.05,
+                    pos = (0,0), text = 'press spacebar to accept or esc to abort', alignHoriz = 'center',
+                    alignVert = 'center', color = 'white', wrapWidth=1.5, autoLog=False)
+    validationText.setAutoDraw(True)
+    keepwaiting = True
+    while keepwaiting:
+        dotsLeft.draw()
+        dotsRight.draw()
+        allValidationPoints.draw()
+        keyPressed = event.getKeys(keyList=['space', 'escape'])
+        if any(keyPressed):
+            if keyPressed[0]=='space':
+                keepwaiting = False
+                validationText.setAutoDraw(False)
+            if keyPressed[0]=='escape':
+                keepwaiting = False
+                validationText.setAutoDraw(False)
+                continueExp=False
+        win.flip()
+    win.flip()
+    return continueExp, times
+    
 # Main function to run experiment
 def run():
 
@@ -83,7 +198,6 @@ def run():
     ###############################################################
     expInfo = openingDlg()
     run_dir = expInfo['outputDir']
-
     globalFs = expInfo['sound_fs']
     ttl_code = expInfo['ttl_code']
 
@@ -97,7 +211,16 @@ def run():
 
     # Set how to send and then close the TTL port
     send_ttl, close_ttl = set_ttl(expInfo['ttl'], address)
-
+    
+    # Calibrate eyetracker
+    if expInfo['eyetracker'] != 'None':
+        eyetracker = tobii.find_all_eyetrackers()[0]
+        eyetracker.set_gaze_output_frequency(expInfo['eyetracker'])
+        tracker_manager_path = 'C:/Users/HBML/AppData/Local/Programs/TobiiProEyeTrackerManager/'
+        serial_number = 'TPSP1-010202818635'
+        mode = 'usercalibration'
+        os.system('{}TobiiProEyeTrackerManager.exe --device-sn={} --mode={}'.format(tracker_manager_path, serial_number, mode))
+        
     # Setup the Window, Keyboard, Mouse
     win, mon = setScreen(
         expInfo['screen_resolution'], expInfo['monitor_width'], expInfo['full_screen'], expInfo['monitor'],
@@ -115,7 +238,6 @@ def run():
         lineWidth=0, lineColor='white', lineColorSpace='rgb',
         fillColor='white', fillColorSpace='rgb', opacity=1, interpolate=True)
     
-
     filename = expInfo['outputDir'] + os.sep + expInfo['runid']
     
     # Experiment Handler
@@ -190,6 +312,19 @@ def run():
         color='black', colorSpace='rgb', opacity=None, 
         languageStyle='LTR',
         depth=-3.0)
+        
+    # get limits of the boxes in tobii coordinates
+    sameBoxLims = np.empty((4,1))
+    sameBoxLims[0] = (((sameBox.pos[0]-sameBox.width/2)/2)+0.5)
+    sameBoxLims[1] = ((sameBox.pos[0]+sameBox.width/2)/2)+0.5
+    sameBoxLims[2] = ((sameBox.pos[1]+sameBox.height/2)/-2)+0.5
+    sameBoxLims[3] = ((sameBox.pos[1]-sameBox.height/2)/-2)+0.5
+    diffBoxLims = np.empty((4,1))
+    diffBoxLims[0] = ((diffBox.pos[0]-diffBox.width/2)/2)+0.5
+    diffBoxLims[1] = ((diffBox.pos[0]+diffBox.width/2)/2)+0.5
+    diffBoxLims[2] = ((diffBox.pos[1]+diffBox.height/2)/-2)+0.5
+    diffBoxLims[3] = ((diffBox.pos[1]-diffBox.height/2)/-2)+0.5
+
 
     # Initiate audio
     stream = sound.Sound(name='trial_audio', sampleRate=globalFs, stereo=True, syncToWin=win)
@@ -205,25 +340,26 @@ def run():
     clickStream = createAudioStream(singleClick,clickSOA,globalFs,clickReps)
     choice2cue_clickStream = createAudioStream(singleClick,clickSOA,globalFs,5)
     
-    
-    # Initialize eyetracker
+    # Initiate Eyetracker
     if expInfo['eyetracker'] != 'None':
-        eyetracker = tobii.find_all_eyetrackers()[0]
-        eyetracker.set_gaze_output_frequency(expInfo['eyetracker'])
-        tracker_manager_path = 'C:/Users/HBML/AppData/Local/Programs/TobiiProEyeTrackerManager/'
-        serial_number = 'TPSP1-010202818635'
-        if expInfo['calibrateEyetracker']:
-            mode = 'usercalibration'
-            os.system('{}TobiiProEyeTrackerManager.exe --device-sn={} --mode={}'.format(tracker_manager_path, serial_number, mode))
         ETdataFilePath = filename + '_et.csv'
         # initiate data frame for eyetracker data
         # ETcolumns = 'deviceTimeStampInSec,systemTimeStampInSec,xLeftGazeOriginInTrackboxCoords,yLeftGazeOriginInTrackboxCoords,zLeftGazeOriginInTrackboxCoords,xLeftGazeOriginInUserCoords,yLeftGazeOriginInUserCoords,zLeftGazeOriginInUserCoords,leftGazeOriginValidity,xLeftGazePositionInUserCoords,yLeftGazePositionInUserCoords,zLeftGazePositionInUserCoords,xLeftGazePositionOnDisplay,yLeftGazePositionOnDisplay,leftGazePointValidity,leftPupilDiameter,leftPupilValidity,xRightGazeOriginInTrackboxCoords,yRightGazeOriginInTrackboxCoords,zRightGazeOriginInTrackboxCoords,xRightGazeOriginInUserCoords,yRightGazeOriginInUserCoords,zRightGazeOriginInUserCoords,rightGazeOriginValidity,xRightGazePositionInUserCoords,yRightGazePositionInUserCoords,zRightGazePositionInUserCoords,xRightGazePositionOnDisplay,yRightGazePositionOnDisplay,rightGazePointValidity,rightPupilDiameter,rightPupilValidity'
         ETcolumns = 'expTime,deviceTimeStamp,systemTimeStamp,xLeftGazeOriginInTrackboxCoords,yLeftGazeOriginInTrackboxCoords,zLeftGazeOriginInTrackboxCoords,xLeftGazeOriginInUserCoords,yLeftGazeOriginInUserCoords,zLeftGazeOriginInUserCoords,leftGazeOriginValidity,xLeftGazePositionInUserCoords,yLeftGazePositionInUserCoords,zLeftGazePositionInUserCoords,xLeftGazePositionOnDisplay,yLeftGazePositionOnDisplay,leftGazePointValidity,leftPupilDiameter,leftPupilValidity,xRightGazeOriginInTrackboxCoords,yRightGazeOriginInTrackboxCoords,zRightGazeOriginInTrackboxCoords,xRightGazeOriginInUserCoords,yRightGazeOriginInUserCoords,zRightGazeOriginInUserCoords,rightGazeOriginValidity,xRightGazePositionInUserCoords,yRightGazePositionInUserCoords,zRightGazePositionInUserCoords,xRightGazePositionOnDisplay,yRightGazePositionOnDisplay,rightGazePointValidity,rightPupilDiameter,rightPupilValidity'        
+        global ETdata
         ETdata = np.empty((0,33))
         with open(ETdataFilePath, 'ab') as csvfile:
             np.savetxt(csvfile,ETdata,delimiter=',',header=ETcolumns)
-    
+
     win.flip()
+    
+    # Do eyetracker validation
+    continueExperiment, validationTimes = ETvalidation(win,eyetracker,int(expInfo['eyetracker']))
+    ETvalidationFilePath = filename + '_etValidationTimes.csv'
+    with open(ETvalidationFilePath, 'w') as csvfile:
+        np.savetxt(csvfile,validationTimes,delimiter=',',header='PsychoPyTime,ETtime')
+    if not continueExperiment:
+        thisExp.abort()
     
     # Show instructions
     instructions = "Two tones will play. After the second tone, decide whether the two tones are the same or different. If the two tones are the same <fill1>. If the sounds are different then <fill2>.\nPress <space> to start"
@@ -382,37 +518,37 @@ def run():
             # Check for pressed keys on keyboard
             keysPressed = kb.getKeys(keyList=["escape","c","m"])
             
-            if expInfo['responseType'] == 'eyetracker':
+            if expInfo['responseType'] == 'saccade':
                 # check for target fixation
-                fix = expInfo['response_fixation_time']
+                fix = SETTINGS['response_fixation_time']
                 if expInfo['eyetracker'] != 'None' and sameBox.status == STARTED:
-                    if (tNow - lastETtime) > 0.1 and ETdata.shape[0]>(fix*int(expInfo['eyetracker'])):
+                    if ETdata.shape[0]>(fix*int(expInfo['eyetracker'])):
                         # get the last gaze positions
                         index = ETdata.shape[0]-1
-                        xleft = ETdata[(index-int(fix*int(expInfo['eyetracker']))):index,12]
-                        yleft = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,13]
-                        xright = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,27]
-                        yright = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,28]
-                        
+                        xleft = ETdata[(index-int(fix*int(expInfo['eyetracker']))):index,13]
+                        yleft = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,14]
+                        xright = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,28]
+                        yright = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,29]
+
                         # Check if eyes are in the box indicating "same"
-                        isInSameBox = np.nanmean(xleft)>=sameBox['xlim'][0]\
-                        and np.nanmean(xleft)<=sameBox['xlim'][1]\
-                        and np.nanmean(xright)>=sameBox['xlim'][0]\
-                        and np.nanmean(xright)<=sameBox['xlim'][1]\
-                        and np.nanmean(yleft)>=sameBox['ylim'][0]\
-                        and np.nanmean(yleft)<=sameBox['ylim'][1]\
-                        and np.nanmean(yright)>=sameBox['ylim'][0]\
-                        and np.nanmean(yright)<=sameBox['ylim'][1]
+                        isInSameBox = np.nanmean(xleft)>=sameBoxLims[0]\
+                        and np.nanmean(xleft)<=sameBoxLims[1]\
+                        and np.nanmean(xright)>=sameBoxLims[0]\
+                        and np.nanmean(xright)<=sameBoxLims[1]\
+                        and np.nanmean(yleft)>=sameBoxLims[2]\
+                        and np.nanmean(yleft)<=sameBoxLims[3]\
+                        and np.nanmean(yright)>=sameBoxLims[2]\
+                        and np.nanmean(yright)<=sameBoxLims[3]
                         
                         # Check if eyes are in the box indicating "different"
-                        isInDiffBox = np.nanmean(xleft)>=diffBox['xlim'][0]\
-                        and np.nanmean(xleft)<=diffBox['xlim'][1]\
-                        and np.nanmean(xright)>=diffBox['xlim'][0]\
-                        and np.nanmean(xright)<=diffBox['xlim'][1]\
-                        and np.nanmean(yleft)>=diffBox['ylim'][0]\
-                        and np.nanmean(yleft)<=diffBox['ylim'][1]\
-                        and np.nanmean(yright)>=diffBox['ylim'][0]\
-                        and np.nanmean(yright)<=diffBox['ylim'][1]
+                        isInDiffBox = np.nanmean(xleft)>=diffBoxLims[0]\
+                        and np.nanmean(xleft)<=diffBoxLims[1]\
+                        and np.nanmean(xright)>=diffBoxLims[0]\
+                        and np.nanmean(xright)<=diffBoxLims[1]\
+                        and np.nanmean(yleft)>=diffBoxLims[2]\
+                        and np.nanmean(yleft)<=diffBoxLims[3]\
+                        and np.nanmean(yright)>=diffBoxLims[2]\
+                        and np.nanmean(yright)<=diffBoxLims[3]
                         
                         if isInSameBox:
                             responseTime = tNow - fix
@@ -420,7 +556,7 @@ def run():
                             continueTrial = False
                             win.callOnFlip(stream.stop)
                             win.timeOnFlip(stream, 'tStopRefresh')
-                        elif isinDiffBox:
+                        elif isInDiffBox:
                             responseTime = tNow - fix
                             response = 'diff'
                             continueTrial = False
