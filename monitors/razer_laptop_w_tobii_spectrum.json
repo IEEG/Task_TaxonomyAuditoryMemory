@@ -3,6 +3,7 @@
     "monitor_width": 54,
     "full_screen": true,
     "sound_fs": 48000,
+    "ttl_code": 255,
     "mmb_port_code": "COM3",
     "pport_port_code": "DFF8"
   }
