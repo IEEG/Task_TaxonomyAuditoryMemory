@@ -354,12 +354,13 @@ def run():
     win.flip()
     
     # Do eyetracker validation
-    continueExperiment, validationTimes = ETvalidation(win,eyetracker,int(expInfo['eyetracker']))
-    ETvalidationFilePath = filename + '_etValidationTimes.csv'
-    with open(ETvalidationFilePath, 'w') as csvfile:
-        np.savetxt(csvfile,validationTimes,delimiter=',',header='PsychoPyTime,ETtime')
-    if not continueExperiment:
-        thisExp.abort()
+    if expInfo['eyetracker'] != 'None':
+        continueExperiment, validationTimes = ETvalidation(win,eyetracker,int(expInfo['eyetracker']))
+        ETvalidationFilePath = filename + '_etValidationTimes.csv'
+        with open(ETvalidationFilePath, 'w') as csvfile:
+            np.savetxt(csvfile,validationTimes,delimiter=',',header='PsychoPyTime,ETtime')
+        if not continueExperiment:
+            thisExp.abort()
     
     # Show instructions
     instructions = "Two tones will play. After the second tone, decide whether the two tones are the same or different. If the two tones are the same <fill1>. If the sounds are different then <fill2>.\nPress <space> to start"
