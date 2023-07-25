@@ -322,10 +322,11 @@ def run():
     clickDur = SETTINGS["click_dur"]
     clickSOA = SETTINGS["click_soa"]
     trlDur = 60
+    numWMclicks = 5
     clickReps = np.floor(trlDur/clickSOA).astype(int)
     singleClick = np.ones( ( round(clickDur*globalFs),) )
     clickStream = createAudioStream(singleClick,clickSOA,globalFs,clickReps)
-    choice2cue_clickStream = createAudioStream(singleClick,clickSOA,globalFs,5)
+    choice2cue_clickStream = createAudioStream(singleClick,clickSOA,globalFs,numWMclicks)
     
     # Initiate Eyetracker
     if expInfo['eyetracker'] != 'None':
@@ -396,13 +397,13 @@ def run():
         # Create sounds (frequencies)
         cuesound_id = str(thisTrial["cue_frequency"]) + "_" + str(thisTrial["cue_frequency_range"])
         cueSound = generate_tone_sequence(
-            coherence=0.5, 
+            coherence=thisTrial["coherence"], 
             frequency=thisTrial["cue_frequency"],
             frequency_range=thisTrial["cue_frequency_range"],
             sampleRate=globalFs)
         choicesound_id = str(thisTrial["choice_frequency"]) + "_" + str(thisTrial["choice_frequency_range"])
         choiceSound = generate_tone_sequence(
-            coherence=0.5, 
+            coherence=thisTrial["coherence"], 
             frequency=thisTrial["choice_frequency"],
             frequency_range=thisTrial["choice_frequency_range"],
             sampleRate=globalFs)
@@ -656,6 +657,8 @@ def run():
         # Append trial info
         thisExp.addData('audio_onset', stream.tStartRefresh)
         thisExp.addData('audio_offset', stream.tStopRefresh)
+        thisExp.addData('numWMclicks',numWMclicks)
+        thisExp.addData('clickSOA',clickSOA)
         thisExp.addData('display_feedback', txtObj.tStartRefresh)
         thisExp.addData('response_time', responseTime)
         thisExp.addData('response', response)
