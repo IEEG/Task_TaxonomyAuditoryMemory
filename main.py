@@ -625,7 +625,7 @@ def run():
         # Display feedback
         if response == correctResponse:
             txtObj = correctResponseText
-            #port.write('r') #
+            port.write(str.encode('r10'))
             #port.flush()
         elif response != correctResponseText and responseTime != 0:
             txtObj = incorrectResponseText
