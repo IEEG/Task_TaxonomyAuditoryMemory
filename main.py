@@ -212,6 +212,10 @@ def run():
     # Set how to send and then close the TTL port
     send_ttl, close_ttl = set_ttl(expInfo['ttl'], address)
     
+    # set serial com for reward system on cage-trainer
+#    import serial
+#    port = serial.Serial("COM3",115200)
+    
     # Calibrate eyetracker
     if expInfo['eyetracker'] != 'None':
         eyetracker = tobii.find_all_eyetrackers()[0]
@@ -621,6 +625,8 @@ def run():
         # Display feedback
         if response == correctResponse:
             txtObj = correctResponseText
+            #port.write('r') #
+            #port.flush()
         elif response != correctResponseText and responseTime != 0:
             txtObj = incorrectResponseText
         else:
