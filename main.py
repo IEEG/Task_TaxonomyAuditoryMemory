@@ -253,7 +253,7 @@ def run():
     # TrialHandler
     trials = TrialHandler2(
         op.join(_thisDir,'soundslist.csv'),
-        nReps=15,
+        nReps=5,
         method='random',
         originPath=__file__,
         extraInfo=expInfo)
@@ -285,7 +285,7 @@ def run():
         ori=0.0, 
         pos=(-0.5, 0), 
         #pos=(-864,558),
-        anchor='center',
+        #anchor='center',
         lineWidth=1.0, colorSpace='rgb',  lineColor='green', fillColor='green',
         opacity=None, depth=0.0, interpolate=True)
     diffBox = visual.Rect(
@@ -299,10 +299,24 @@ def run():
         ori=0.0, 
         pos=(0.5, 0), 
 #        pos=(864,558),
-        anchor='center',
+        # anchor='center',
         lineWidth=1.0, colorSpace='rgb',  lineColor='red', fillColor='red',
         opacity=None, depth=-1.0, interpolate=True)
 
+    sameText = visual.TextStim(win=win, name='sameText',
+        text='Same',
+        font='Open Sans',
+        units='norm', pos=(-0.5, 0), height=0.05, wrapWidth=None, ori=0.0, 
+        color='black', colorSpace='rgb', opacity=None, 
+        languageStyle='LTR',
+        depth=-2.0)
+    diffText = visual.TextStim(win=win, name='diffText',
+        text='Different',
+        font='Open Sans',
+        units='norm', pos=(0.5, 0), height=0.05, wrapWidth=None, ori=0.0, 
+        color='black', colorSpace='rgb', opacity=None, 
+        languageStyle='LTR',
+        depth=-3.0)
         
     # get limits of the boxes in tobii coordinates
     sameBoxLims = np.empty((4,1))
@@ -325,12 +339,22 @@ def run():
     # Create audio clicks
     clickDur = SETTINGS["click_dur"]
     clickSOA = SETTINGS["click_soa"]
-    trlDur = 60
+    preDur = 3
+    trlDur = 5
     numWMclicks = 5
+  
+    clickRepsPre = np.floor(preDur/clickSOA).astype(int)
     clickReps = np.floor(trlDur/clickSOA).astype(int)
+    
     singleClick = np.ones( ( round(clickDur*globalFs),) )
+    
+    clickStreamPre = createAudioStream(singleClick,clickSOA,globalFs,clickRepsPre)
     clickStream = createAudioStream(singleClick,clickSOA,globalFs,clickReps)
     choice2cue_clickStream = createAudioStream(singleClick,clickSOA,globalFs,numWMclicks)
+    
+    # Cut choice2cue_clickstream to present the choice at a random phase of the clickstream
+    phase_idx = randint(round((clickSOA - clickDur) * globalFs))
+    choice2cue_clickStream = choice2cue_clickStream[:-phase_idx]
     
     # Initiate Eyetracker
     if expInfo['eyetracker'] != 'None':
@@ -421,12 +445,12 @@ def run():
         
         # Create audio stream. Embed choiceSound within the click train
         if cuesound_id == choicesound_id:
-            audStream = np.concatenate((cueSound, choice2cue_clickStream, cueSound, clickStream)) #identical stimuli on match trials
+            audStream = np.concatenate((clickStreamPre, cueSound, choice2cue_clickStream, cueSound, clickStream)) #identical stimuli on match trials
         else:
-            audStream = np.concatenate((cueSound, choice2cue_clickStream, choiceSound, clickStream))
+            audStream = np.concatenate((clickStreamPre, cueSound, choice2cue_clickStream, choiceSound, clickStream))
 
         # When response can start to be made
-        responseStartTime = np.concatenate((cueSound, choice2cue_clickStream, choiceSound)).shape[0]/globalFs
+        responseStartTime = np.concatenate((clickStreamPre, cueSound, choice2cue_clickStream, choiceSound)).shape[0]/globalFs
 
         # Intertrial interval wait time
         thisTrialITI = randint(SETTINGS['iti'][0]*1000, high=SETTINGS['iti'][1]*1000)/1000
@@ -435,7 +459,8 @@ def run():
         stream.setSound(audStream)
 
         # keep track of which components have finished
-        trialComponents = [sameBox, diffBox, stream]
+        # trialComponents = [sameBox, diffBox, stream]
+        trialComponents = [sameBox, diffBox, sameText, diffText, stream]
         for thisComponent in trialComponents:
             thisComponent.tStart = None
             thisComponent.tStop = None
@@ -499,7 +524,9 @@ def run():
             if tNextFlip >= tAllowResponse and not responseStarted:
                 crossFixation.setAutoDraw(False)
                 sameBox.setAutoDraw(True)
+                sameText.setAutoDraw(True)
                 diffBox.setAutoDraw(True)
+                diffText.setAutoDraw(True)
                 responseStarted = True
                 
                 
@@ -570,7 +597,8 @@ def run():
                         # check if the mouse was inside our 'clickable' objects
                         gotValidClick = False
                         #clickableList = environmenttools.getFromNames([sameBox, diffBox, sameText, diffText], namespace=locals
-                        clickableList = [sameBox, diffBox]
+                        #clickableList = [sameBox, diffBox]
+                        clickableList = [sameBox, diffBox, sameText, diffText]
                         for obj in clickableList:
                             # is this object clicked on?
                             if obj.contains(mouse):
@@ -625,7 +653,7 @@ def run():
         # Display feedback
         if response == correctResponse:
             txtObj = correctResponseText
-            port.write(str.encode('r10'))
+            #port.write(str.encode('r10'))
             #port.flush()
         elif response != correctResponseText and responseTime != 0:
             txtObj = incorrectResponseText
@@ -637,7 +665,9 @@ def run():
         txtObj.tStartRefresh = None
         crossFixation.setAutoDraw(False)
         sameBox.setAutoDraw(False)
+        sameText.setAutoDraw(False)
         diffBox.setAutoDraw(False)
+        diffText.setAutoDraw(False)
         tEnd = tNow + 3
         continueFeedback = True
         win.timeOnFlip(txtObj, 'tStartRefresh')
