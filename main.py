@@ -18,6 +18,7 @@ import os
 import os.path as op
 import pandas as pd
 import sys
+import copy
 from psychtoolbox import GetSecs, WaitSecs
 from psychopy import core, event, visual, sound, logging, gui
 from psychopy.hardware import keyboard
@@ -212,10 +213,6 @@ def run():
     # Set how to send and then close the TTL port
     send_ttl, close_ttl = set_ttl(expInfo['ttl'], address)
     
-    # set serial com for reward system on cage-trainer
-#    import serial
-#    port = serial.Serial("COM3",115200)
-    
     # Calibrate eyetracker
     if expInfo['eyetracker'] != 'None':
         eyetracker = tobii.find_all_eyetrackers()[0]
@@ -253,7 +250,7 @@ def run():
     # TrialHandler
     trials = TrialHandler2(
         op.join(_thisDir,'soundslist.csv'),
-        nReps=5,
+        nReps=4,
         method='random',
         originPath=__file__,
         extraInfo=expInfo)
@@ -284,7 +281,7 @@ def run():
 #        height=400,
         ori=0.0, 
         pos=(-0.5, 0), 
-        #pos=(-864,558),
+        # pos=(-864,558),
         #anchor='center',
         lineWidth=1.0, colorSpace='rgb',  lineColor='green', fillColor='green',
         opacity=None, depth=0.0, interpolate=True)
@@ -298,11 +295,10 @@ def run():
 #        height=400,
         ori=0.0, 
         pos=(0.5, 0), 
-#        pos=(864,558),
-        # anchor='center',
+        #pos=(864,558),
+        #anchor='center',
         lineWidth=1.0, colorSpace='rgb',  lineColor='red', fillColor='red',
         opacity=None, depth=-1.0, interpolate=True)
-
     sameText = visual.TextStim(win=win, name='sameText',
         text='Same',
         font='Open Sans',
@@ -339,22 +335,26 @@ def run():
     # Create audio clicks
     clickDur = SETTINGS["click_dur"]
     clickSOA = SETTINGS["click_soa"]
+    sequence_duration = SETTINGS["sequence_duration"]
+    
     preDur = 3
-    trlDur = 5
-    numWMclicks = 5
-  
+    trlDur = 2
+    
+    clickRepsWM = 5
     clickRepsPre = np.floor(preDur/clickSOA).astype(int)
     clickReps = np.floor(trlDur/clickSOA).astype(int)
     
+    clickRepsTotal = clickRepsPre + clickReps + clickRepsWM
+    
     singleClick = np.ones( ( round(clickDur*globalFs),) )
+    clickStreamTotal = createAudioStream(singleClick,clickSOA,globalFs,clickRepsTotal)
+
+    sPre = int(round((clickRepsPre * clickSOA) * globalFs))
+    sWM = int(round((clickRepsWM * clickSOA) * globalFs))
     
-    clickStreamPre = createAudioStream(singleClick,clickSOA,globalFs,clickRepsPre)
-    clickStream = createAudioStream(singleClick,clickSOA,globalFs,clickReps)
-    choice2cue_clickStream = createAudioStream(singleClick,clickSOA,globalFs,numWMclicks)
-    
-    # Cut choice2cue_clickstream to present the choice at a random phase of the clickstream
-    phase_idx = randint(round((clickSOA - clickDur) * globalFs))
-    choice2cue_clickStream = choice2cue_clickStream[:-phase_idx]
+    # Cue and response sample in the clickstream, meant to work for cues that are shorter than the SOA -> they are places between the first and second beep of the WM period
+    sCue = int(sPre + round(((clickSOA-sequence_duration)*globalFs)/2))
+    sResp = int(sPre + sWM)
     
     # Initiate Eyetracker
     if expInfo['eyetracker'] != 'None':
@@ -401,7 +401,10 @@ def run():
     
 # Start trials
     for thisTrial in trials:
-
+        
+        # Copy the empty click stream to fill with trial specific cue and response sounds
+        clickStreamTrial = copy.copy(clickStreamTotal)
+        
         crossFixation.setAutoDraw(True)
         
         # Trial variables
@@ -425,18 +428,24 @@ def run():
         # Create sounds (frequencies)
         cuesound_id = str(thisTrial["cue_frequency"]) + "_" + str(thisTrial["cue_frequency_range"])
         cueSound = generate_tone_sequence(
-            coherence=thisTrial["coherence"], 
+            coherence=0.9, 
             frequency=thisTrial["cue_frequency"],
             frequency_range=thisTrial["cue_frequency_range"],
-            sampleRate=globalFs)
+            sampleRate=globalFs,
+            sequence_duration=sequence_duration)
         choicesound_id = str(thisTrial["choice_frequency"]) + "_" + str(thisTrial["choice_frequency_range"])
         choiceSound = generate_tone_sequence(
-            coherence=thisTrial["coherence"], 
+            coherence=0.9, 
             frequency=thisTrial["choice_frequency"],
             frequency_range=thisTrial["choice_frequency_range"],
-            sampleRate=globalFs)
+            sampleRate=globalFs,
+            sequence_duration=sequence_duration)
         #arr = generate_tone_sequence(coherence=0.9, frequency=4000, frequency_range=1, sampleRate=44100)
         
+        # Cut choice2cue_clickstream to present the choice at a random phase of the clickstream
+        phase_idx = randint(round((clickSOA - clickDur) * globalFs))
+        sRespTrial = sResp - phase_idx
+#   
         # Check what the correct response to this trial should be
         if cuesound_id == choicesound_id: #cuesound == choicesound:
             correctResponse = "same"
@@ -445,21 +454,26 @@ def run():
         
         # Create audio stream. Embed choiceSound within the click train
         if cuesound_id == choicesound_id:
-            audStream = np.concatenate((clickStreamPre, cueSound, choice2cue_clickStream, cueSound, clickStream)) #identical stimuli on match trials
+#            audStream = np.concatenate((clickStreamPre, cueSound, choice2cue_clickStream_phase, cueSound, clickStream)) #identical stimuli on match trials
+            clickStreamTrial[sCue:(sCue+len(cueSound))] = cueSound
+            clickStreamTrial[sRespTrial:(sRespTrial+len(cueSound))] = 0
+            clickStreamTrial[sRespTrial:(sRespTrial+len(cueSound))] = cueSound
         else:
-            audStream = np.concatenate((clickStreamPre, cueSound, choice2cue_clickStream, choiceSound, clickStream))
+#            audStream = np.concatenate((clickStreamPre, cueSound, choice2cue_clickStream_phase, choiceSound, clickStream))
+            clickStreamTrial[sCue:(sCue+len(cueSound))] = cueSound
+            clickStreamTrial[sRespTrial:(sRespTrial+len(choiceSound))] = 0
+            clickStreamTrial[sRespTrial:(sRespTrial+len(choiceSound))] = choiceSound
 
         # When response can start to be made
-        responseStartTime = np.concatenate((clickStreamPre, cueSound, choice2cue_clickStream, choiceSound)).shape[0]/globalFs
+        responseStartTime = (sRespTrial+len(choiceSound))/globalFs
 
         # Intertrial interval wait time
         thisTrialITI = randint(SETTINGS['iti'][0]*1000, high=SETTINGS['iti'][1]*1000)/1000
 
         # Set auditory stimulus
-        stream.setSound(audStream)
+        stream.setSound(clickStreamTrial)
 
         # keep track of which components have finished
-        # trialComponents = [sameBox, diffBox, stream]
         trialComponents = [sameBox, diffBox, sameText, diffText, stream]
         for thisComponent in trialComponents:
             thisComponent.tStart = None
@@ -522,14 +536,11 @@ def run():
             
             # Present two images/shape representing the choices when time is right
             if tNextFlip >= tAllowResponse and not responseStarted:
-                crossFixation.setAutoDraw(False)
                 sameBox.setAutoDraw(True)
                 sameText.setAutoDraw(True)
                 diffBox.setAutoDraw(True)
                 diffText.setAutoDraw(True)
                 responseStarted = True
-                
-                
                 win.timeOnFlip(sameBox, 'tStartRefresh')
 
             # If too much time has passed then end the trial
@@ -597,20 +608,15 @@ def run():
                         # check if the mouse was inside our 'clickable' objects
                         gotValidClick = False
                         #clickableList = environmenttools.getFromNames([sameBox, diffBox, sameText, diffText], namespace=locals
-                        #clickableList = [sameBox, diffBox]
                         clickableList = [sameBox, diffBox, sameText, diffText]
                         for obj in clickableList:
                             # is this object clicked on?
                             if obj.contains(mouse):
                                 gotValidClick = True
-                                
-                                sameBox.setAutoDraw(False)
-                                diffBox.setAutoDraw(False)
                                 objPressed = obj.name
                                 response = objPressed[0:4]
                                 responseTime = tNow
                         if gotValidClick:
-                            
                             continueTrial = False
                             win.callOnFlip(stream.stop)
                             win.timeOnFlip(stream, 'tStopRefresh')
@@ -653,8 +659,6 @@ def run():
         # Display feedback
         if response == correctResponse:
             txtObj = correctResponseText
-            #port.write(str.encode('r10'))
-            #port.flush()
         elif response != correctResponseText and responseTime != 0:
             txtObj = incorrectResponseText
         else:
@@ -693,8 +697,6 @@ def run():
         # Append trial info
         thisExp.addData('audio_onset', stream.tStartRefresh)
         thisExp.addData('audio_offset', stream.tStopRefresh)
-        thisExp.addData('numWMclicks',numWMclicks)
-        thisExp.addData('clickSOA',clickSOA)
         thisExp.addData('display_feedback', txtObj.tStartRefresh)
         thisExp.addData('response_time', responseTime)
         thisExp.addData('response', response)

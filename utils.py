@@ -28,7 +28,7 @@ def openingDlg():
     """The opening dialogue for AV40"""
 
     # TTL options
-    ttlOpts = ['None', 'USB_TTL', 'ParallelPort']
+    ttlOpts = ['None', 'USB_TTL', 'ParallelPort', 'MMB']
 
     # Possible photodiode options
     diodeOpts = ['None','UpperLeft','UpperRight','LowerLeft','LowerRight']
