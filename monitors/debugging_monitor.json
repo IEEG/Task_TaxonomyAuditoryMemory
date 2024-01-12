@@ -6,7 +6,7 @@
   "monitor_width": 32,
   "full_screen": false,
   "ttl_code": 255,
-  "sound_fs": 44100,
+  "sound_fs": 48000,
   "mmb_port_code": null,
   "pport_port_code": "DFF8"
 }

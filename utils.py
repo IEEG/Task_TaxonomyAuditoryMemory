@@ -126,6 +126,8 @@ def openingDlg():
         custom_task_settings = monitor_settings.pop('task_settings')
         expInfo.update(custom_task_settings)
 
+    print(monitor_settings)
+    
     expInfo.update(monitor_settings)
 
     # Set TTL settings

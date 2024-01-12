@@ -250,7 +250,7 @@ def run():
     # TrialHandler
     trials = TrialHandler2(
         op.join(_thisDir,'soundslist.csv'),
-        nReps=4,
+        nReps=SETTINGS["nReps"],
         method='random',
         originPath=__file__,
         extraInfo=expInfo)
@@ -336,25 +336,21 @@ def run():
     clickDur = SETTINGS["click_dur"]
     clickSOA = SETTINGS["click_soa"]
     sequence_duration = SETTINGS["sequence_duration"]
+    pre_time = SETTINGS["pre_time"]
+    trial_time = SETTINGS["trial_time"]
+    wait_time = SETTINGS["wait_time"]
     
-    preDur = 3
-    trlDur = 2
+    clickRepsPre = np.floor(pre_time/clickSOA).astype(int)
+    clickRepsTrial = np.floor(trial_time/clickSOA).astype(int)
+    clickRepsWait = np.floor(wait_time/clickSOA).astype(int)
     
-    clickRepsWM = 5
-    clickRepsPre = np.floor(preDur/clickSOA).astype(int)
-    clickReps = np.floor(trlDur/clickSOA).astype(int)
+    clickRepsTotal = clickRepsPre + clickRepsTrial + clickRepsWait
     
-    clickRepsTotal = clickRepsPre + clickReps + clickRepsWM
-    
-    singleClick = np.ones( ( round(clickDur*globalFs),) )
+    singleClick = np.ones((round(clickDur*globalFs),))
     clickStreamTotal = createAudioStream(singleClick,clickSOA,globalFs,clickRepsTotal)
-
-    sPre = int(round((clickRepsPre * clickSOA) * globalFs))
-    sWM = int(round((clickRepsWM * clickSOA) * globalFs))
     
-    # Cue and response sample in the clickstream, meant to work for cues that are shorter than the SOA -> they are places between the first and second beep of the WM period
-    sCue = int(sPre + round(((clickSOA-sequence_duration)*globalFs)/2))
-    sResp = int(sPre + sWM)
+    sCue = len(createAudioStream(singleClick,clickSOA,globalFs,clickRepsPre))
+    sResp = sCue + len(createAudioStream(singleClick,clickSOA,globalFs,clickRepsTrial))
     
     # Initiate Eyetracker
     if expInfo['eyetracker'] != 'None':
@@ -403,7 +399,10 @@ def run():
     for thisTrial in trials:
         
         # Copy the empty click stream to fill with trial specific cue and response sounds
-        clickStreamTrial = copy.copy(clickStreamTotal)
+        if thisTrial["click_stream"] == 1:
+            clickStreamTrial = copy.copy(clickStreamTotal)
+        else:
+            clickStreamTrial = np.zeros(clickStreamTotal.shape)
         
         crossFixation.setAutoDraw(True)
         
@@ -413,59 +412,40 @@ def run():
         responseStarted = False
         prevButtonState = mouse.getPressed()
     
-        # Load sound files (when they're wav files)
-        #cuesoundFile = thisTrial['cuesound']
-        #cueSound = read_wav(op.join(stimDir, cuesoundFile), new_fs=globalFs)
-        #choicesoundFile = thisTrial['choicesound']
-        #choiceSound = read_wav(op.join(stimDir, choicesoundFile), new_fs=globalFs)
-        
-        # Create sounds (tones)
-        #cuesound = thisTrial["cuesound"]
-        #cueSound = createToneReps(value=cuesound, tone_dur=SETTINGS['tone_dur'], blank_dur=SETTINGS['tone_blank_dur'], reps=SETTINGS['tone_reps'], sampleRate=globalFs)
-        #choicesound = thisTrial["choicesound"]
-        #choiceSound = createToneReps(value=choicesound, tone_dur=SETTINGS['tone_dur'], blank_dur=SETTINGS['tone_blank_dur'], reps=SETTINGS['tone_reps'], sampleRate=globalFs)
-        
         # Create sounds (frequencies)
-        cuesound_id = str(thisTrial["cue_frequency"]) + "_" + str(thisTrial["cue_frequency_range"])
         cueSound = generate_tone_sequence(
             coherence=0.9, 
             frequency=thisTrial["cue_frequency"],
             frequency_range=thisTrial["cue_frequency_range"],
             sampleRate=globalFs,
             sequence_duration=sequence_duration)
-        choicesound_id = str(thisTrial["choice_frequency"]) + "_" + str(thisTrial["choice_frequency_range"])
         choiceSound = generate_tone_sequence(
             coherence=0.9, 
             frequency=thisTrial["choice_frequency"],
             frequency_range=thisTrial["choice_frequency_range"],
             sampleRate=globalFs,
             sequence_duration=sequence_duration)
-        #arr = generate_tone_sequence(coherence=0.9, frequency=4000, frequency_range=1, sampleRate=44100)
         
         # Cut choice2cue_clickstream to present the choice at a random phase of the clickstream
-        phase_idx = randint(round((clickSOA - clickDur) * globalFs))
-        sRespTrial = sResp - phase_idx
+#        phase_idx = randint(round((clickSOA - clickDur) * globalFs))
+#        sRespTrial = sResp - phase_idx
 #   
         # Check what the correct response to this trial should be
-        if cuesound_id == choicesound_id: #cuesound == choicesound:
+        if thisTrial["preserve_sequence"] == 1: #cuesound == choicesound:
             correctResponse = "same"
         else:
             correctResponse = "diff"
         
         # Create audio stream. Embed choiceSound within the click train
-        if cuesound_id == choicesound_id:
-#            audStream = np.concatenate((clickStreamPre, cueSound, choice2cue_clickStream_phase, cueSound, clickStream)) #identical stimuli on match trials
+        if thisTrial["preserve_sequence"] == 1:
             clickStreamTrial[sCue:(sCue+len(cueSound))] = cueSound
-            clickStreamTrial[sRespTrial:(sRespTrial+len(cueSound))] = 0
-            clickStreamTrial[sRespTrial:(sRespTrial+len(cueSound))] = cueSound
+            clickStreamTrial[sResp:(sResp+len(cueSound))] = cueSound
         else:
-#            audStream = np.concatenate((clickStreamPre, cueSound, choice2cue_clickStream_phase, choiceSound, clickStream))
             clickStreamTrial[sCue:(sCue+len(cueSound))] = cueSound
-            clickStreamTrial[sRespTrial:(sRespTrial+len(choiceSound))] = 0
-            clickStreamTrial[sRespTrial:(sRespTrial+len(choiceSound))] = choiceSound
-
+            clickStreamTrial[sResp:(sResp+len(choiceSound))] = choiceSound
+        
         # When response can start to be made
-        responseStartTime = (sRespTrial+len(choiceSound))/globalFs
+        responseStartTime = (sResp+len(choiceSound))/globalFs
 
         # Intertrial interval wait time
         thisTrialITI = randint(SETTINGS['iti'][0]*1000, high=SETTINGS['iti'][1]*1000)/1000
