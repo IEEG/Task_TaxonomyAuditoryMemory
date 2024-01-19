@@ -23,7 +23,7 @@ from psychtoolbox import GetSecs, WaitSecs
 from psychopy import core, event, visual, sound, logging, gui
 from psychopy.hardware import keyboard
 #from psychopy.tools import environmenttools
-from psychopy.data import ExperimentHandler, TrialHandler2
+from psychopy.data import ExperimentHandler, TrialHandler2, importConditions
 from psychopy.constants import NOT_STARTED, STARTED, FINISHED
 import tobii_research as tobii
 
@@ -248,13 +248,12 @@ def run():
         saveWideText=True, savePickle=True)
 
     # TrialHandler
-    trials = TrialHandler2(
-        op.join(_thisDir,'soundslist.csv'),
-        nReps=SETTINGS["nReps"],
-        method='random',
-        originPath=__file__,
-        extraInfo=expInfo)
-    thisExp.addLoop(trials)
+    # set up handler to look after randomisation of conditions etc
+    blocks = TrialHandler2(nReps=SETTINGS["nBlocks"], method='random', 
+        extraInfo=expInfo, originPath=-1,
+        trialList=importConditions('blocks.csv'),
+        seed=None, name='blocks')
+    thisExp.addLoop(blocks)  # add the loop to the experiment
 
     # Trial feedback text
     correctResponseText = visual.TextStim(
@@ -339,6 +338,7 @@ def run():
     pre_time = SETTINGS["pre_time"]
     trial_time = SETTINGS["trial_time"]
     wait_time = SETTINGS["wait_time"]
+    click_scale = SETTINGS["click_scale"]
     
     clickRepsPre = np.floor(pre_time/clickSOA).astype(int)
     clickRepsTrial = np.floor(trial_time/clickSOA).astype(int)
@@ -347,10 +347,14 @@ def run():
     clickRepsTotal = clickRepsPre + clickRepsTrial + clickRepsWait
     
     singleClick = np.ones((round(clickDur*globalFs),))
-    clickStreamTotal = createAudioStream(singleClick,clickSOA,globalFs,clickRepsTotal)
+    clickStreamTotal = click_scale * createAudioStream(singleClick,clickSOA,globalFs,clickRepsTotal)
     
     sCue = len(createAudioStream(singleClick,clickSOA,globalFs,clickRepsPre))
     sResp = sCue + len(createAudioStream(singleClick,clickSOA,globalFs,clickRepsTrial))
+    
+    # Early and late
+    sResp_early = sCue + len(createAudioStream(singleClick,clickSOA,globalFs,clickRepsTrial-1))
+    sResp_late = sCue + len(createAudioStream(singleClick,clickSOA,globalFs,clickRepsTrial+1))
     
     # Initiate Eyetracker
     if expInfo['eyetracker'] != 'None':
@@ -396,292 +400,308 @@ def run():
         core.quit()
     
 # Start trials
-    for thisTrial in trials:
+    for thisBlock in blocks:
+
+        trials = TrialHandler2(
+            trialList=importConditions(thisBlock['condsFile']),
+            nReps=SETTINGS["nTrials"],
+            method='random',
+            originPath=__file__,
+            extraInfo=expInfo)
+        thisExp.addLoop(trials)
         
-        # Copy the empty click stream to fill with trial specific cue and response sounds
-        if thisTrial["click_stream"] == 1:
-            clickStreamTrial = copy.copy(clickStreamTotal)
-        else:
-            clickStreamTrial = np.zeros(clickStreamTotal.shape)
-        
-        crossFixation.setAutoDraw(True)
-        
-        # Trial variables
-        response = 'NA'
-        continueTrial = True
-        responseStarted = False
-        prevButtonState = mouse.getPressed()
-    
-        # Create sounds (frequencies)
-        cueSound = generate_tone_sequence(
-            coherence=0.9, 
-            frequency=thisTrial["cue_frequency"],
-            frequency_range=thisTrial["cue_frequency_range"],
-            sampleRate=globalFs,
-            sequence_duration=sequence_duration)
-        choiceSound = generate_tone_sequence(
-            coherence=0.9, 
-            frequency=thisTrial["choice_frequency"],
-            frequency_range=thisTrial["choice_frequency_range"],
-            sampleRate=globalFs,
-            sequence_duration=sequence_duration)
-        
-        # Cut choice2cue_clickstream to present the choice at a random phase of the clickstream
-#        phase_idx = randint(round((clickSOA - clickDur) * globalFs))
-#        sRespTrial = sResp - phase_idx
-#   
-        # Check what the correct response to this trial should be
-        if thisTrial["preserve_sequence"] == 1: #cuesound == choicesound:
-            correctResponse = "same"
-        else:
-            correctResponse = "diff"
-        
-        # Create audio stream. Embed choiceSound within the click train
-        if thisTrial["preserve_sequence"] == 1:
-            clickStreamTrial[sCue:(sCue+len(cueSound))] = cueSound
-            clickStreamTrial[sResp:(sResp+len(cueSound))] = cueSound
-        else:
-            clickStreamTrial[sCue:(sCue+len(cueSound))] = cueSound
-            clickStreamTrial[sResp:(sResp+len(choiceSound))] = choiceSound
-        
-        # When response can start to be made
-        responseStartTime = (sResp+len(choiceSound))/globalFs
-
-        # Intertrial interval wait time
-        thisTrialITI = randint(SETTINGS['iti'][0]*1000, high=SETTINGS['iti'][1]*1000)/1000
-
-        # Set auditory stimulus
-        stream.setSound(clickStreamTrial)
-
-        # keep track of which components have finished
-        trialComponents = [sameBox, diffBox, sameText, diffText, stream]
-        for thisComponent in trialComponents:
-            thisComponent.tStart = None
-            thisComponent.tStop = None
-            thisComponent.tStartRefresh = None
-            thisComponent.tStopRefresh = None
-            if hasattr(thisComponent, 'status'):
-                thisComponent.status = NOT_STARTED
-
-        # Start eyetracker
-        if expInfo['eyetracker']!='None':
-            WaitSecs(1)
-            thisTrialITI -= 1
-            eyetracker.subscribe_to(tobii.EYETRACKER_GAZE_DATA,gaze_callback)
+        for thisTrial in trials:
             
-        # Start playing auditory stimulus
-        #stream.play(when=GetSecs()+thisTrialITI)
-        tNow = core.getTime()
-        #tStartAudio = GetSecs()+thisTrialITI
-        tStartAudio = tNow+thisTrialITI
-        
-        # When audio starts to play send a TTL
-        keep_going = True
-        while keep_going:
-            tNow = core.getTime()
-            tNextFlip = win.getFutureFlipTime(clock=None)
-            
-            if stream.status == STARTED:
-                keep_going = False
-            
-            if tNextFlip >= tStartAudio and stream.status == NOT_STARTED:
-                stream.play(when=win)
-                win.callOnFlip(send_ttl, ttl_code)
-                win.timeOnFlip(stream, 'tStartRefresh')
-                
-            if keep_going:
-                win.flip()
-            
-#        while stream.status == NOT_STARTED:
-#            #win.flip()
-#            pass
-#        soundOnset = GetSecs() #core.getTime()
-#        send_ttl(ttl_code)
-
-        # When to allow responses to start to appear
-        soundOnset = stream.tStartRefresh
-        tAllowResponse = soundOnset + responseStartTime
-        
-        while continueTrial:
-
-            # Current time
-            tNow = core.getTime()
-            tNextFlip = win.getFutureFlipTime(clock=None)
-            
-            # Check if it's time to start audio
-            if tNextFlip >= tStartAudio and stream.status == NOT_STARTED:
-                stream.play(when=win)
-                win.callOnFlip(send_ttl, ttl_code)
-                win.timeOnFlip(stream, 'tStartRefresh')
-            
-            # Present two images/shape representing the choices when time is right
-            if tNextFlip >= tAllowResponse and not responseStarted:
-                sameBox.setAutoDraw(True)
-                sameText.setAutoDraw(True)
-                diffBox.setAutoDraw(True)
-                diffText.setAutoDraw(True)
-                responseStarted = True
-                win.timeOnFlip(sameBox, 'tStartRefresh')
-
-            # If too much time has passed then end the trial
-            if stream.status == FINISHED:
-                response = "NA"
-                responseTime = 0
-                continueTrial = False
-                stream.tStopRefresh = tNow
-                
-            # Check for pressed keys on keyboard
-            keysPressed = kb.getKeys(keyList=["escape","c","m"])
-            
-            if expInfo['responseType'] == 'saccade':
-                # check for target fixation
-                fix = SETTINGS['response_fixation_time']
-                if expInfo['eyetracker'] != 'None' and sameBox.status == STARTED:
-                    if ETdata.shape[0]>(fix*int(expInfo['eyetracker'])):
-                        # get the last gaze positions
-                        index = ETdata.shape[0]-1
-                        xleft = ETdata[(index-int(fix*int(expInfo['eyetracker']))):index,13]
-                        yleft = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,14]
-                        xright = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,28]
-                        yright = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,29]
-
-                        # Check if eyes are in the box indicating "same"
-                        isInSameBox = np.nanmean(xleft)>=sameBoxLims[0]\
-                        and np.nanmean(xleft)<=sameBoxLims[1]\
-                        and np.nanmean(xright)>=sameBoxLims[0]\
-                        and np.nanmean(xright)<=sameBoxLims[1]\
-                        and np.nanmean(yleft)>=sameBoxLims[2]\
-                        and np.nanmean(yleft)<=sameBoxLims[3]\
-                        and np.nanmean(yright)>=sameBoxLims[2]\
-                        and np.nanmean(yright)<=sameBoxLims[3]
-                        
-                        # Check if eyes are in the box indicating "different"
-                        isInDiffBox = np.nanmean(xleft)>=diffBoxLims[0]\
-                        and np.nanmean(xleft)<=diffBoxLims[1]\
-                        and np.nanmean(xright)>=diffBoxLims[0]\
-                        and np.nanmean(xright)<=diffBoxLims[1]\
-                        and np.nanmean(yleft)>=diffBoxLims[2]\
-                        and np.nanmean(yleft)<=diffBoxLims[3]\
-                        and np.nanmean(yright)>=diffBoxLims[2]\
-                        and np.nanmean(yright)<=diffBoxLims[3]
-                        
-                        if isInSameBox:
-                            responseTime = tNow - fix
-                            response = 'same'
-                            continueTrial = False
-                            win.callOnFlip(stream.stop)
-                            win.timeOnFlip(stream, 'tStopRefresh')
-                        elif isInDiffBox:
-                            responseTime = tNow - fix
-                            response = 'diff'
-                            continueTrial = False
-                            win.callOnFlip(stream.stop)
-                            win.timeOnFlip(stream, 'tStopRefresh')
-            
-            # Look for mouse button press
-            if expInfo['responseType'] == 'mouse' and sameBox.status == STARTED:
-                # Keep checking for if a button is pressed
-                buttons = mouse.getPressed()
-                if buttons != prevButtonState:  # button state changed?
-                    prevButtonState = buttons
-                    if sum(buttons) > 0:  # state changed to a new click
-                        # check if the mouse was inside our 'clickable' objects
-                        gotValidClick = False
-                        #clickableList = environmenttools.getFromNames([sameBox, diffBox, sameText, diffText], namespace=locals
-                        clickableList = [sameBox, diffBox, sameText, diffText]
-                        for obj in clickableList:
-                            # is this object clicked on?
-                            if obj.contains(mouse):
-                                gotValidClick = True
-                                objPressed = obj.name
-                                response = objPressed[0:4]
-                                responseTime = tNow
-                        if gotValidClick:
-                            continueTrial = False
-                            win.callOnFlip(stream.stop)
-                            win.timeOnFlip(stream, 'tStopRefresh')
-            
-            # If keyboard if used for response
-            elif expInfo['responseType'] == 'keyboard' and sameBox.status == STARTED:
-                if keysPressed == ["c"]:
-                    response = "same"
-                    responseTime = tNow
-                    continueTrial = False
-                    win.callOnFlip(stream.stop)
-                    win.timeOnFlip(stream, 'tStopRefresh')
-                elif keysPressed == ["m"]:
-                    response = "diff"
-                    responseTime = tNow
-                    continueTrial = False
-                    win.callOnFlip(stream.stop)
-                    win.timeOnFlip(stream, 'tStopRefresh')
-                    
-            # If <esc> pressed then exit task. If click train ends then end the trial
-            if keysPressed == ["escape"]:
-                close_ttl()
-                win.close()
-                thisExp.saveAsWideText(filename+'.csv', delim='auto')
-                thisExp.saveAsPickle(filename)
-                logging.flush()
-                if expInfo['eyetracker']!='None':
-                    with open(ETdataFilePath, 'ab') as csvfile:
-                        np.savetxt(csvfile,ETdata,delimiter=',')
-                    eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
-                thisExp.abort()
-                core.quit()
-                        
-            if continueTrial:
-                win.flip()
-
-
-        #stream.stop()
-        
-        # Display feedback
-        if response == correctResponse:
-            txtObj = correctResponseText
-        elif response != correctResponseText and responseTime != 0:
-            txtObj = incorrectResponseText
-        else:
-            txtObj = noResponseText
-
-        # Draw feedback to screen and nothing else
-        txtObj.setAutoDraw(True)
-        txtObj.tStartRefresh = None
-        crossFixation.setAutoDraw(False)
-        sameBox.setAutoDraw(False)
-        sameText.setAutoDraw(False)
-        diffBox.setAutoDraw(False)
-        diffText.setAutoDraw(False)
-        tEnd = tNow + 3
-        continueFeedback = True
-        win.timeOnFlip(txtObj, 'tStartRefresh')
-        while continueFeedback:
-            tNow = core.getTime()
-            if tEnd <= tNow:
-                continueFeedback = False
+            # Copy the empty click stream to fill with trial specific cue and response sounds
+            if thisTrial["click_stream"] == 1:
+                clickStreamTrial = copy.copy(clickStreamTotal)
             else:
-                win.flip()
+                clickStreamTrial = np.zeros(clickStreamTotal.shape)
             
-        # unsubscribe from eyetracker
-        if expInfo['eyetracker']!='None':
-            eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
-            with open(ETdataFilePath, 'ab') as csvfile:
-                np.savetxt(csvfile,ETdata,delimiter=',')
-            # re-initiate data frame for eyetracker data
-            ETdata = np.empty((0,33))
+            crossFixation.setAutoDraw(True)
+            
+            # Trial variables
+            response = 'NA'
+            continueTrial = True
+            responseStarted = False
+            prevButtonState = mouse.getPressed()
         
-        # Stop showing feedbadk and bring back the cross
-        txtObj.setAutoDraw(False)
-        crossFixation.setAutoDraw(True)
+            # Create sounds (frequencies)
+            cueSound = generate_tone_sequence(
+                coherence=0.9, 
+                frequency=thisTrial["cue_frequency"],
+                frequency_range=thisTrial["cue_frequency_range"],
+                sampleRate=globalFs,
+                sequence_duration=sequence_duration)
+            choiceSound = generate_tone_sequence(
+                coherence=0.9, 
+                frequency=thisTrial["choice_frequency"],
+                frequency_range=thisTrial["choice_frequency_range"],
+                sampleRate=globalFs,
+                sequence_duration=sequence_duration)
+            
+            # Cut choice2cue_clickstream to present the choice at a random phase of the clickstream
+    #        phase_idx = randint(round((clickSOA - clickDur) * globalFs))
+    #        sRespTrial = sResp - phase_idx
+            if thisTrial["delay"] == 0:
+                sRespTrial = sResp
+            elif thisTrial["delay"] == -1:
+                sRespTrial = sResp_early
+            elif thisTrial["delay"] == 1:
+                sRespTrial = sResp_late
+            
+            # Check what the correct response to this trial should be
+            if thisTrial["preserve_sequence"] == 1: #cuesound == choicesound:
+                correctResponse = "same"
+            else:
+                correctResponse = "diff"
+            
+            # Create audio stream. Embed choiceSound within the click train
+            if thisTrial["preserve_sequence"] == 1:
+                clickStreamTrial[sCue:(sCue+len(cueSound))] = cueSound
+                clickStreamTrial[sRespTrial:(sRespTrial+len(cueSound))] = cueSound
+            else:
+                clickStreamTrial[sCue:(sCue+len(cueSound))] = cueSound
+                clickStreamTrial[sRespTrial:(sRespTrial+len(choiceSound))] = choiceSound
+            
+            # When response can start to be made
+            responseStartTime = (sRespTrial+len(choiceSound))/globalFs
 
-        # Append trial info
-        thisExp.addData('audio_onset', stream.tStartRefresh)
-        thisExp.addData('audio_offset', stream.tStopRefresh)
-        thisExp.addData('display_feedback', txtObj.tStartRefresh)
-        thisExp.addData('response_time', responseTime)
-        thisExp.addData('response', response)
-        thisExp.nextEntry()
-    
+            # Intertrial interval wait time
+            thisTrialITI = randint(SETTINGS['iti'][0]*1000, high=SETTINGS['iti'][1]*1000)/1000
+
+            # Set auditory stimulus
+            stream.setSound(clickStreamTrial)
+
+            # keep track of which components have finished
+            trialComponents = [sameBox, diffBox, sameText, diffText, stream]
+            for thisComponent in trialComponents:
+                thisComponent.tStart = None
+                thisComponent.tStop = None
+                thisComponent.tStartRefresh = None
+                thisComponent.tStopRefresh = None
+                if hasattr(thisComponent, 'status'):
+                    thisComponent.status = NOT_STARTED
+
+            # Start eyetracker
+            if expInfo['eyetracker']!='None':
+                WaitSecs(1)
+                thisTrialITI -= 1
+                eyetracker.subscribe_to(tobii.EYETRACKER_GAZE_DATA,gaze_callback)
+                
+            # Start playing auditory stimulus
+            #stream.play(when=GetSecs()+thisTrialITI)
+            tNow = core.getTime()
+            #tStartAudio = GetSecs()+thisTrialITI
+            tStartAudio = tNow+thisTrialITI
+            
+            # When audio starts to play send a TTL
+            keep_going = True
+            while keep_going:
+                tNow = core.getTime()
+                tNextFlip = win.getFutureFlipTime(clock=None)
+                
+                if stream.status == STARTED:
+                    keep_going = False
+                
+                if tNextFlip >= tStartAudio and stream.status == NOT_STARTED:
+                    stream.play(when=win)
+                    win.callOnFlip(send_ttl, ttl_code)
+                    win.timeOnFlip(stream, 'tStartRefresh')
+                    
+                if keep_going:
+                    win.flip()
+                
+    #        while stream.status == NOT_STARTED:
+    #            #win.flip()
+    #            pass
+    #        soundOnset = GetSecs() #core.getTime()
+    #        send_ttl(ttl_code)
+
+            # When to allow responses to start to appear
+            soundOnset = stream.tStartRefresh
+            tAllowResponse = soundOnset + responseStartTime
+            
+            while continueTrial:
+
+                # Current time
+                tNow = core.getTime()
+                tNextFlip = win.getFutureFlipTime(clock=None)
+                
+                # Check if it's time to start audio
+                if tNextFlip >= tStartAudio and stream.status == NOT_STARTED:
+                    stream.play(when=win)
+                    win.callOnFlip(send_ttl, ttl_code)
+                    win.timeOnFlip(stream, 'tStartRefresh')
+                
+                # Present two images/shape representing the choices when time is right
+                if tNextFlip >= tAllowResponse and not responseStarted:
+                    sameBox.setAutoDraw(True)
+                    sameText.setAutoDraw(True)
+                    diffBox.setAutoDraw(True)
+                    diffText.setAutoDraw(True)
+                    responseStarted = True
+                    win.timeOnFlip(sameBox, 'tStartRefresh')
+
+                # If too much time has passed then end the trial
+                if stream.status == FINISHED:
+                    response = "NA"
+                    responseTime = 0
+                    continueTrial = False
+                    stream.tStopRefresh = tNow
+                    
+                # Check for pressed keys on keyboard
+                keysPressed = kb.getKeys(keyList=["escape","c","m"])
+                
+                if expInfo['responseType'] == 'saccade':
+                    # check for target fixation
+                    fix = SETTINGS['response_fixation_time']
+                    if expInfo['eyetracker'] != 'None' and sameBox.status == STARTED:
+                        if ETdata.shape[0]>(fix*int(expInfo['eyetracker'])):
+                            # get the last gaze positions
+                            index = ETdata.shape[0]-1
+                            xleft = ETdata[(index-int(fix*int(expInfo['eyetracker']))):index,13]
+                            yleft = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,14]
+                            xright = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,28]
+                            yright = ETdata[index-int(fix*int(expInfo['eyetracker'])):index,29]
+
+                            # Check if eyes are in the box indicating "same"
+                            isInSameBox = np.nanmean(xleft)>=sameBoxLims[0]\
+                            and np.nanmean(xleft)<=sameBoxLims[1]\
+                            and np.nanmean(xright)>=sameBoxLims[0]\
+                            and np.nanmean(xright)<=sameBoxLims[1]\
+                            and np.nanmean(yleft)>=sameBoxLims[2]\
+                            and np.nanmean(yleft)<=sameBoxLims[3]\
+                            and np.nanmean(yright)>=sameBoxLims[2]\
+                            and np.nanmean(yright)<=sameBoxLims[3]
+                            
+                            # Check if eyes are in the box indicating "different"
+                            isInDiffBox = np.nanmean(xleft)>=diffBoxLims[0]\
+                            and np.nanmean(xleft)<=diffBoxLims[1]\
+                            and np.nanmean(xright)>=diffBoxLims[0]\
+                            and np.nanmean(xright)<=diffBoxLims[1]\
+                            and np.nanmean(yleft)>=diffBoxLims[2]\
+                            and np.nanmean(yleft)<=diffBoxLims[3]\
+                            and np.nanmean(yright)>=diffBoxLims[2]\
+                            and np.nanmean(yright)<=diffBoxLims[3]
+                            
+                            if isInSameBox:
+                                responseTime = tNow - fix
+                                response = 'same'
+                                continueTrial = False
+                                win.callOnFlip(stream.stop)
+                                win.timeOnFlip(stream, 'tStopRefresh')
+                            elif isInDiffBox:
+                                responseTime = tNow - fix
+                                response = 'diff'
+                                continueTrial = False
+                                win.callOnFlip(stream.stop)
+                                win.timeOnFlip(stream, 'tStopRefresh')
+                
+                # Look for mouse button press
+                if expInfo['responseType'] == 'mouse' and sameBox.status == STARTED:
+                    # Keep checking for if a button is pressed
+                    buttons = mouse.getPressed()
+                    if buttons != prevButtonState:  # button state changed?
+                        prevButtonState = buttons
+                        if sum(buttons) > 0:  # state changed to a new click
+                            # check if the mouse was inside our 'clickable' objects
+                            gotValidClick = False
+                            #clickableList = environmenttools.getFromNames([sameBox, diffBox, sameText, diffText], namespace=locals
+                            clickableList = [sameBox, diffBox, sameText, diffText]
+                            for obj in clickableList:
+                                # is this object clicked on?
+                                if obj.contains(mouse):
+                                    gotValidClick = True
+                                    objPressed = obj.name
+                                    response = objPressed[0:4]
+                                    responseTime = tNow
+                            if gotValidClick:
+                                continueTrial = False
+                                win.callOnFlip(stream.stop)
+                                win.timeOnFlip(stream, 'tStopRefresh')
+                
+                # If keyboard if used for response
+                elif expInfo['responseType'] == 'keyboard' and sameBox.status == STARTED:
+                    if keysPressed == ["c"]:
+                        response = "same"
+                        responseTime = tNow
+                        continueTrial = False
+                        win.callOnFlip(stream.stop)
+                        win.timeOnFlip(stream, 'tStopRefresh')
+                    elif keysPressed == ["m"]:
+                        response = "diff"
+                        responseTime = tNow
+                        continueTrial = False
+                        win.callOnFlip(stream.stop)
+                        win.timeOnFlip(stream, 'tStopRefresh')
+                        
+                # If <esc> pressed then exit task. If click train ends then end the trial
+                if keysPressed == ["escape"]:
+                    close_ttl()
+                    win.close()
+                    thisExp.saveAsWideText(filename+'.csv', delim='auto')
+                    thisExp.saveAsPickle(filename)
+                    logging.flush()
+                    if expInfo['eyetracker']!='None':
+                        with open(ETdataFilePath, 'ab') as csvfile:
+                            np.savetxt(csvfile,ETdata,delimiter=',')
+                        eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
+                    thisExp.abort()
+                    core.quit()
+                            
+                if continueTrial:
+                    win.flip()
+
+
+            #stream.stop()
+            
+            # Display feedback
+            if response == correctResponse:
+                txtObj = correctResponseText
+            elif response != correctResponseText and responseTime != 0:
+                txtObj = incorrectResponseText
+            else:
+                txtObj = noResponseText
+
+            # Draw feedback to screen and nothing else
+            txtObj.setAutoDraw(True)
+            txtObj.tStartRefresh = None
+            crossFixation.setAutoDraw(False)
+            sameBox.setAutoDraw(False)
+            sameText.setAutoDraw(False)
+            diffBox.setAutoDraw(False)
+            diffText.setAutoDraw(False)
+            tEnd = tNow + 3
+            continueFeedback = True
+            win.timeOnFlip(txtObj, 'tStartRefresh')
+            while continueFeedback:
+                tNow = core.getTime()
+                if tEnd <= tNow:
+                    continueFeedback = False
+                else:
+                    win.flip()
+                
+            # unsubscribe from eyetracker
+            if expInfo['eyetracker']!='None':
+                eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
+                with open(ETdataFilePath, 'ab') as csvfile:
+                    np.savetxt(csvfile,ETdata,delimiter=',')
+                # re-initiate data frame for eyetracker data
+                ETdata = np.empty((0,33))
+            
+            # Stop showing feedbadk and bring back the cross
+            txtObj.setAutoDraw(False)
+            crossFixation.setAutoDraw(True)
+
+            # Append trial info
+            thisExp.addData('audio_onset', stream.tStartRefresh)
+            thisExp.addData('audio_offset', stream.tStopRefresh)
+            thisExp.addData('display_feedback', txtObj.tStartRefresh)
+            thisExp.addData('response_time', responseTime)
+            thisExp.addData('response', response)
+            thisExp.nextEntry()
+        
     # Task over. Close everything
     close_ttl()
     win.close()
