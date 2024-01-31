@@ -201,6 +201,9 @@ def run():
     run_dir = expInfo['outputDir']
     globalFs = expInfo['sound_fs']
     ttl_code = expInfo['ttl_code']
+    
+    stream_dir = './streams/{:s}'.format(expInfo['runid'])
+    os.makedirs(stream_dir)
 
     # Set TTL pulse
     if expInfo['ttl'] == 'ParallelPort':
@@ -401,7 +404,7 @@ def run():
     
 # Start trials
     for thisBlock in blocks:
-
+        
         trials = TrialHandler2(
             trialList=importConditions(thisBlock['condsFile']),
             nReps=SETTINGS["nTrials"],
@@ -411,7 +414,7 @@ def run():
         thisExp.addLoop(trials)
         
         for thisTrial in trials:
-            
+                        
             # Copy the empty click stream to fill with trial specific cue and response sounds
             if thisTrial["click_stream"] == 1:
                 clickStreamTrial = copy.copy(clickStreamTotal)
@@ -428,15 +431,15 @@ def run():
         
             # Create sounds (frequencies)
             cueSound = generate_tone_sequence(
-                coherence=0.9, 
-                frequency=thisTrial["cue_frequency"],
-                frequency_range=thisTrial["cue_frequency_range"],
+                coherence=SETTINGS["coherence"], 
+                frequency=SETTINGS["frequency"],
+                frequency_range=SETTINGS["frequency_range"],
                 sampleRate=globalFs,
                 sequence_duration=sequence_duration)
             choiceSound = generate_tone_sequence(
-                coherence=0.9, 
-                frequency=thisTrial["choice_frequency"],
-                frequency_range=thisTrial["choice_frequency_range"],
+                coherence=SETTINGS["coherence"], 
+                frequency=SETTINGS["frequency"],
+                frequency_range=SETTINGS["frequency_range"],
                 sampleRate=globalFs,
                 sequence_duration=sequence_duration)
             
@@ -470,6 +473,12 @@ def run():
             # Intertrial interval wait time
             thisTrialITI = randint(SETTINGS['iti'][0]*1000, high=SETTINGS['iti'][1]*1000)/1000
 
+            # Save the stimulus 
+            np.save('{:s}/block_{:d}_trial_{:d}_type_{:s}_clicks_{:d}_delay_{:1.2f}s.npy'.format(stream_dir,
+                    thisBlock['thisTrialN'], thisBlock['thisTrialN'], correctResponse, 
+                    thisTrial["preserve_sequence"], sRespTrial/globalFs), 
+                clickStreamTrial)
+            
             # Set auditory stimulus
             stream.setSound(clickStreamTrial)
 
