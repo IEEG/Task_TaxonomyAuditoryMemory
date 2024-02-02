@@ -198,7 +198,7 @@ def run():
     run_dir = expInfo['outputDir']
     globalFs = expInfo['sound_fs']
     ttl_code = expInfo['ttl_code']
-     
+    
     stream_dir = './streams/{:s}'.format(expInfo['runid'])
     os.makedirs(stream_dir)
 
@@ -249,9 +249,14 @@ def run():
 
     # TrialHandler
     # set up handler to look after randomisation of conditions etc
+    if expInfo['trialType'] == 'Training':
+        block_file = 'training_blocks.csv'
+    elif expInfo['trialType'] == 'Experiment':
+        block_file = 'experiment_blocks.csv'
+        
     blocks = TrialHandler2(nReps=SETTINGS["nBlocks"], method='random', 
         extraInfo=expInfo, originPath=-1,
-        trialList=importConditions('blocks.csv'),
+        trialList=importConditions(block_file),
         seed=None, name='blocks')
     thisExp.addLoop(blocks)  # add the loop to the experiment
 
@@ -368,8 +373,6 @@ def run():
     # Initiate Eyetracker
     if expInfo['eyetracker'] != 'None':
         ETdataFilePath = filename + '_et.csv'
-        # initiate data frame for eyetracker data
-        # ETcolumns = 'deviceTimeStampInSec,systemTimeStampInSec,xLeftGazeOriginInTrackboxCoords,yLeftGazeOriginInTrackboxCoords,zLeftGazeOriginInTrackboxCoords,xLeftGazeOriginInUserCoords,yLeftGazeOriginInUserCoords,zLeftGazeOriginInUserCoords,leftGazeOriginValidity,xLeftGazePositionInUserCoords,yLeftGazePositionInUserCoords,zLeftGazePositionInUserCoords,xLeftGazePositionOnDisplay,yLeftGazePositionOnDisplay,leftGazePointValidity,leftPupilDiameter,leftPupilValidity,xRightGazeOriginInTrackboxCoords,yRightGazeOriginInTrackboxCoords,zRightGazeOriginInTrackboxCoords,xRightGazeOriginInUserCoords,yRightGazeOriginInUserCoords,zRightGazeOriginInUserCoords,rightGazeOriginValidity,xRightGazePositionInUserCoords,yRightGazePositionInUserCoords,zRightGazePositionInUserCoords,xRightGazePositionOnDisplay,yRightGazePositionOnDisplay,rightGazePointValidity,rightPupilDiameter,rightPupilValidity'
         ETcolumns = 'expTime,deviceTimeStamp,systemTimeStamp,xLeftGazeOriginInTrackboxCoords,yLeftGazeOriginInTrackboxCoords,zLeftGazeOriginInTrackboxCoords,xLeftGazeOriginInUserCoords,yLeftGazeOriginInUserCoords,zLeftGazeOriginInUserCoords,leftGazeOriginValidity,xLeftGazePositionInUserCoords,yLeftGazePositionInUserCoords,zLeftGazePositionInUserCoords,xLeftGazePositionOnDisplay,yLeftGazePositionOnDisplay,leftGazePointValidity,leftPupilDiameter,leftPupilValidity,xRightGazeOriginInTrackboxCoords,yRightGazeOriginInTrackboxCoords,zRightGazeOriginInTrackboxCoords,xRightGazeOriginInUserCoords,yRightGazeOriginInUserCoords,zRightGazeOriginInUserCoords,rightGazeOriginValidity,xRightGazePositionInUserCoords,yRightGazePositionInUserCoords,zRightGazePositionInUserCoords,xRightGazePositionOnDisplay,yRightGazePositionOnDisplay,rightGazePointValidity,rightPupilDiameter,rightPupilValidity'        
         global ETdata
         ETdata = np.empty((0,33))
@@ -392,12 +395,12 @@ def run():
     if expInfo['responseType'] == 'eyetracker':
         instructions = instructions.replace("<fill1>", "look at the 'Same' box on the screen") 
         instructions = instructions.replace("<fill2>", "look at the 'Different' box on the screen") 
-    elif expInfo['responseType'] == 'keyboard':
+    elif expInfo['responseType'] == 'Keyboard':
         instructions = instructions.replace("<fill1>", "press the 'C' key on the keyboard") 
         instructions = instructions.replace("<fill2>", "press the 'M' key on the keyboard") 
-    elif expInfo['responseType'] == 'mouse':
+    elif expInfo['responseType'] == 'Mouse':
         instructions = instructions.replace("<fill1>", "click the 'Same' box on the screen") 
-        instructions = instructions.replace("<fill2>", "clickthe 'Different' box on the screen") 
+        instructions = instructions.replace("<fill2>", "click the 'Different' box on the screen") 
     
     key = pauseAndReadText(win, instructions, mouse=None, txtColor=[1, 1, 1], keys=['space', 'escape'], wait=0)
     if key == 'escape':
@@ -408,9 +411,9 @@ def run():
         thisExp.abort()
         core.quit()
     
-# Start trials
+    # Start blocks
     for thisBlock in blocks:
-        
+
         trials = TrialHandler2(
             trialList=importConditions(thisBlock['condsFile']),
             nReps=SETTINGS["nTrials"],
@@ -418,7 +421,7 @@ def run():
             originPath=__file__,
             extraInfo=expInfo)
         thisExp.addLoop(trials)
-        
+   
         for thisTrial in trials:
                         
             # Copy the empty click stream to fill with trial specific cue and response sounds
@@ -469,15 +472,16 @@ def run():
 
             # Save the stimulus 
             if thisTrial['choice_id'] is None:
-                np.save('{:s}/block_{:d}_trial_{:d}_type_{:s}_cue_{:d}_clicks_{:d}_delay_{:1.2f}s.npy'.format(stream_dir,
-                        thisBlock['thisTrialN'], thisTrial['thisTrialN'], correctResponse, 
-                        thisTrial['cue_id'], thisTrial['click_stream'], (sRespTrial-sCue)/globalFs), 
+                np.save('{:s}/{:s}_block_{:d}_trial_{:d}_type_{:s}_cue_{:d}_clicks_{:d}_delay_{:1.2f}s.npy'.format(stream_dir,
+                        expInfo['trialType'], thisBlock['thisTrialN'], thisTrial['thisTrialN'], 
+                        correctResponse, thisTrial['cue_id'], thisTrial['click_stream'], 
+                        (sRespTrial-sCue)/globalFs), 
                     clickStreamTrial)
             else:
-                np.save('{:s}/block_{:d}_trial_{:d}_type_{:s}_cue_{:d}_choice_{:d}_clicks_{:d}_delay_{:1.2f}s.npy'.format(stream_dir,
-                        thisBlock['thisTrialN'], thisTrial['thisTrialN'], correctResponse, 
-                        thisTrial['cue_id'], int(thisTrial['choice_id']), thisTrial['click_stream'], 
-                        (sRespTrial-sCue)/globalFs), 
+                np.save('{:s}/{:s}_block_{:d}_trial_{:d}_type_{:s}_cue_{:d}_choice_{:d}_clicks_{:d}_delay_{:1.2f}s.npy'.format(stream_dir,
+                        expInfo['trialType'], thisBlock['thisTrialN'], thisTrial['thisTrialN'], 
+                        correctResponse, thisTrial['cue_id'], int(thisTrial['choice_id']), 
+                        thisTrial['click_stream'], (sRespTrial-sCue)/globalFs), 
                     clickStreamTrial)
             
             # Set auditory stimulus
@@ -555,7 +559,7 @@ def run():
                 # Check for pressed keys on keyboard
                 keysPressed = kb.getKeys(keyList=["escape","c","m"])
                 
-                if expInfo['responseType'] == 'saccade':
+                if expInfo['responseType'] == 'Saccade':
                     # check for target fixation
                     fix = SETTINGS['response_fixation_time']
                     if expInfo['eyetracker'] != 'None' and sameBox.status == STARTED:
@@ -601,7 +605,7 @@ def run():
                                 win.timeOnFlip(stream, 'tStopRefresh')
                 
                 # Look for mouse button press
-                if expInfo['responseType'] == 'mouse' and sameBox.status == STARTED:
+                if expInfo['responseType'] == 'Mouse' and sameBox.status == STARTED:
                     # Keep checking for if a button is pressed
                     buttons = mouse.getPressed()
                     if buttons != prevButtonState:  # button state changed?
@@ -609,7 +613,6 @@ def run():
                         if sum(buttons) > 0:  # state changed to a new click
                             # check if the mouse was inside our 'clickable' objects
                             gotValidClick = False
-                            #clickableList = environmenttools.getFromNames([sameBox, diffBox, sameText, diffText], namespace=locals
                             clickableList = [sameBox, diffBox, sameText, diffText]
                             for obj in clickableList:
                                 # is this object clicked on?
@@ -624,7 +627,7 @@ def run():
                                 win.timeOnFlip(stream, 'tStopRefresh')
                 
                 # If keyboard if used for response
-                elif expInfo['responseType'] == 'keyboard' and sameBox.status == STARTED:
+                elif expInfo['responseType'] == 'Keyboard' and sameBox.status == STARTED:
                     if keysPressed == ["c"]:
                         response = "same"
                         responseTime = tNow
@@ -655,9 +658,6 @@ def run():
                 if continueTrial:
                     win.flip()
 
-
-            #stream.stop()
-            
             # Display feedback
             if response == correctResponse:
                 txtObj = correctResponseText
@@ -674,7 +674,7 @@ def run():
             sameText.setAutoDraw(False)
             diffBox.setAutoDraw(False)
             diffText.setAutoDraw(False)
-            tEnd = tNow + 3
+            tEnd = tNow + SETTINGS["feedback_duration"]
             continueFeedback = True
             win.timeOnFlip(txtObj, 'tStartRefresh')
             while continueFeedback:

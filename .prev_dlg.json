@@ -1,1 +1,1 @@
-{"runid": "02_02_2024_015", "ttl": "None", "monitor": "debugging_monitor.json", "responseType": "mouse", "eyetracker": "None", "freq_range": "0.1"}
+{"runid": "training_007", "ttl": "None", "monitor": "debugging_monitor.json", "responseType": "Mouse", "eyetracker": "None", "freq_range": "0.3", "trialType": "Training"}

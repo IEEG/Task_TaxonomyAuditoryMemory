@@ -37,7 +37,10 @@ def openingDlg():
     eyetrackerOpts = ['None','300','600','1200']
     
     # Response options
-    responseOpts = ["saccade", "mouse", "keyboard"]
+    responseOpts = ['Saccade', 'Mouse', 'Keyboard']
+    
+    # Trial options
+    trialOpts = ['Training', 'Experiment']
 
     # Retrieve info and files
     _thisDir = os.path.dirname(os.path.abspath(__file__))
@@ -59,6 +62,8 @@ def openingDlg():
         responseOpts.insert(0, responseOpts.pop(responseIdx))
         etIdx = eyetrackerOpts.index(prevDlg['eyetracker'])
         eyetrackerOpts.insert(0,eyetrackerOpts.pop(etIdx))
+        trialIdx = trialOpts.index(prevDlg['trialType'])
+        trialOpts.insert(0, trialOpts.pop(trialIdx))
 
     except Exception as error:
         print(error)
@@ -73,9 +78,10 @@ def openingDlg():
     runDlg.addField('Reponse Type', choices=responseOpts)
     runDlg.addField('EyeTracker',choices=eyetrackerOpts)
     runDlg.addField('frequency_range','0.3')
+    runDlg.addField('Trial Type', choices=trialOpts)
 
     runDlg.addText("If response should be pressing a touchscreen, select 'mouse' as response type")
-    fieldnames = ['runid','ttl','monitor','responseType','eyetracker','freq_range']
+    fieldnames = ['runid','ttl','monitor','responseType','eyetracker','freq_range', 'trialType']
 
     # If it doesn't exist, create logs folder
     logsFolder = _thisDir + os.sep + u'logs'
