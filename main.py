@@ -278,13 +278,8 @@ def run():
         units='norm', 
         width=(0.3, 0.3)[0], 
         height=(0.3, 0.3)[1],
-#        units='pix',
-#        width=400,
-#        height=400,
         ori=0.0, 
         pos=(-0.5, 0), 
-        # pos=(-864,558),
-        #anchor='center',
         lineWidth=1.0, colorSpace='rgb',  lineColor='green', fillColor='green',
         opacity=None, depth=0.0, interpolate=True)
     diffBox = visual.Rect(
@@ -292,13 +287,8 @@ def run():
         units='norm', 
         width=(0.3, 0.3)[0], 
         height=(0.3, 0.3)[1],
-#        units='pix',
-#        width=400,
-#        height=400,
         ori=0.0, 
         pos=(0.5, 0), 
-        #pos=(864,558),
-        #anchor='center',
         lineWidth=1.0, colorSpace='rgb',  lineColor='red', fillColor='red',
         opacity=None, depth=-1.0, interpolate=True)
     sameText = visual.TextStim(win=win, name='sameText',
@@ -328,11 +318,8 @@ def run():
     diffBoxLims[2] = ((diffBox.pos[1]+diffBox.height/2)/-2)+0.5
     diffBoxLims[3] = ((diffBox.pos[1]-diffBox.height/2)/-2)+0.5
 
-
     # Initiate audio
     stream = sound.Sound(name='trial_audio', sampleRate=globalFs, stereo=True, syncToWin=win)
-
-    #mouse.status = STARTED
 
     # Create audio clicks
     clickDur = SETTINGS["click_dur"]
@@ -359,6 +346,28 @@ def run():
     sResp_early = sCue + len(createAudioStream(singleClick,clickSOA,globalFs,clickRepsTrial-1))
     sResp_late = sCue + len(createAudioStream(singleClick,clickSOA,globalFs,clickRepsTrial+1))
     
+    # Create sounds (frequencies)
+    cueSounds = [None] * len(SETTINGS['cue_seeds'])
+    choiceSounds = [None] * len(SETTINGS['target_seeds'])
+    
+    for i in range(len(cueSounds)):
+        cueSounds[i] = generate_tone_sequence(
+            coherence=SETTINGS["coherence"], 
+            frequency=SETTINGS["frequency"],
+            frequency_range=SETTINGS["frequency_range"],
+            sampleRate=globalFs,
+            sequence_duration=sequence_duration,
+            random_seed=SETTINGS['cue_seeds'][i])
+            
+    for i in range(len(choiceSounds)):
+        choiceSounds[i] = generate_tone_sequence(
+            coherence=SETTINGS["coherence"], 
+            frequency=SETTINGS["frequency"],
+            frequency_range=SETTINGS["frequency_range"],
+            sampleRate=globalFs,
+            sequence_duration=sequence_duration,
+            random_seed=SETTINGS['target_seeds'][i])
+                
     # Initiate Eyetracker
     if expInfo['eyetracker'] != 'None':
         ETdataFilePath = filename + '_et.csv'
@@ -429,23 +438,7 @@ def run():
             responseStarted = False
             prevButtonState = mouse.getPressed()
         
-            # Create sounds (frequencies)
-            cueSound = generate_tone_sequence(
-                coherence=SETTINGS["coherence"], 
-                frequency=SETTINGS["frequency"],
-                frequency_range=SETTINGS["frequency_range"],
-                sampleRate=globalFs,
-                sequence_duration=sequence_duration)
-            choiceSound = generate_tone_sequence(
-                coherence=SETTINGS["coherence"], 
-                frequency=SETTINGS["frequency"],
-                frequency_range=SETTINGS["frequency_range"],
-                sampleRate=globalFs,
-                sequence_duration=sequence_duration)
-            
             # Cut choice2cue_clickstream to present the choice at a random phase of the clickstream
-    #        phase_idx = randint(round((clickSOA - clickDur) * globalFs))
-    #        sRespTrial = sResp - phase_idx
             if thisTrial["delay"] == 0:
                 sRespTrial = sResp
             elif thisTrial["delay"] == -1:
@@ -459,13 +452,17 @@ def run():
             else:
                 correctResponse = "diff"
             
-            # Create audio stream. Embed choiceSound within the click train
+            # Select cue and choice sound for the current trial
             if thisTrial["preserve_sequence"] == 1:
-                clickStreamTrial[sCue:(sCue+len(cueSound))] = cueSound
-                clickStreamTrial[sRespTrial:(sRespTrial+len(cueSound))] = cueSound
+                cueSound = cueSounds[thisTrial["cue_id"]]
+                choiceSound = cueSound
             else:
-                clickStreamTrial[sCue:(sCue+len(cueSound))] = cueSound
-                clickStreamTrial[sRespTrial:(sRespTrial+len(choiceSound))] = choiceSound
+                cueSound = cueSounds[thisTrial["cue_id"]]
+                choiceSound = choiceSounds[int(thisTrial["choice_id"])]
+                
+            # Create audio stream. Embed choiceSound within the click train
+            clickStreamTrial[sCue:(sCue+len(cueSound))] = cueSound
+            clickStreamTrial[sRespTrial:(sRespTrial+len(choiceSound))] = choiceSound
             
             # When response can start to be made
             responseStartTime = (sRespTrial+len(choiceSound))/globalFs
@@ -474,10 +471,17 @@ def run():
             thisTrialITI = randint(SETTINGS['iti'][0]*1000, high=SETTINGS['iti'][1]*1000)/1000
 
             # Save the stimulus 
-            np.save('{:s}/block_{:d}_trial_{:d}_type_{:s}_clicks_{:d}_delay_{:1.2f}s.npy'.format(stream_dir,
-                    thisBlock['thisTrialN'], thisBlock['thisTrialN'], correctResponse, 
-                    thisTrial["preserve_sequence"], sRespTrial/globalFs), 
-                clickStreamTrial)
+            if thisTrial['choice_id'] is None:
+                np.save('{:s}/block_{:d}_trial_{:d}_type_{:s}_cue_{:d}_clicks_{:d}_delay_{:1.2f}s.npy'.format(stream_dir,
+                        thisBlock['thisTrialN'], thisTrial['thisTrialN'], correctResponse, 
+                        thisTrial['cue_id'], thisTrial['click_stream'], (sRespTrial-sCue)/globalFs), 
+                    clickStreamTrial)
+            else:
+                np.save('{:s}/block_{:d}_trial_{:d}_type_{:s}_cue_{:d}_choice_{:d}_clicks_{:d}_delay_{:1.2f}s.npy'.format(stream_dir,
+                        thisBlock['thisTrialN'], thisTrial['thisTrialN'], correctResponse, 
+                        thisTrial['cue_id'], int(thisTrial['choice_id']), thisTrial['click_stream'], 
+                        (sRespTrial-sCue)/globalFs), 
+                    clickStreamTrial)
             
             # Set auditory stimulus
             stream.setSound(clickStreamTrial)
@@ -499,9 +503,7 @@ def run():
                 eyetracker.subscribe_to(tobii.EYETRACKER_GAZE_DATA,gaze_callback)
                 
             # Start playing auditory stimulus
-            #stream.play(when=GetSecs()+thisTrialITI)
             tNow = core.getTime()
-            #tStartAudio = GetSecs()+thisTrialITI
             tStartAudio = tNow+thisTrialITI
             
             # When audio starts to play send a TTL
@@ -521,12 +523,6 @@ def run():
                 if keep_going:
                     win.flip()
                 
-    #        while stream.status == NOT_STARTED:
-    #            #win.flip()
-    #            pass
-    #        soundOnset = GetSecs() #core.getTime()
-    #        send_ttl(ttl_code)
-
             # When to allow responses to start to appear
             soundOnset = stream.tStartRefresh
             tAllowResponse = soundOnset + responseStartTime

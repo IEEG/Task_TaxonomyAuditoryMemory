@@ -403,7 +403,7 @@ def pauseAndReadText(win,TxtToWrite,mouse=None,txtColor = [0,0,0],keys=['escape'
     win.flip()
     return clickedBttn
 
-def generate_tone_sequence(coherence, frequency, frequency_range, sampleRate=44100, tone_duration=0.025, sequence_duration=0.5):
+def generate_tone_sequence(coherence, frequency, frequency_range, sampleRate=44100, tone_duration=0.025, sequence_duration=0.5, random_seed=None):
     # Example usage:
     #snd = generate_tone_sequence(coherence=0.9, frequency=4000, frequency_range=1, sampleRate=44100)
     num_tones = int(sequence_duration / tone_duration)
@@ -416,17 +416,18 @@ def generate_tone_sequence(coherence, frequency, frequency_range, sampleRate=441
         coherent_tones.append(coherent_tones_tmp[ii].sndArr)
 
     # Generate the incoherent tone sequence with octave-based spacing
+    np.random.seed(random_seed)
+    random_octave_shift = np.random.uniform(-1, 1, num_tones-num_coherent_tones)
+    
     incoherent_tones = []
     for ii in range(num_tones - num_coherent_tones):
-        random_octave_shift = np.random.uniform(-1, 1)
-        random_frequency = frequency * 2 ** (random_octave_shift * frequency_range)
+        random_frequency = frequency * 2 ** (random_octave_shift[ii] * frequency_range)
         tmp = sound.Sound(value=random_frequency, secs=tone_duration, hamming=True, sampleRate=sampleRate, stereo=True)
-        #tmpSnd = tmp.sndArr
-        #incoherent_tones.append(sound.Sound(value=random_frequency, secs=tone_duration, hamming=True))
         incoherent_tones.append(tmp.sndArr)
 
     # Combine the coherent and incoherent tone sequences
     tone_sequence = coherent_tones + incoherent_tones
+    np.random.seed(random_seed)
     np.random.shuffle(tone_sequence)
     
     # Now put all the tones together to make a single sound
@@ -437,5 +438,3 @@ def generate_tone_sequence(coherence, frequency, frequency_range, sampleRate=441
             arr = np.vstack((arr, tone_sequence[ii]))
             
     return arr
-    #return sound.Sound(value=arr, sampleRate=sampleRate, hamming=False)
-

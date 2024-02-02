@@ -12,5 +12,7 @@ SETTINGS = {
     "click_scale": 0.25,            # Scale of intensity of click stream
     "frequency": 400,               # Center frequency of cue and choice stimulus In Hz
     "frequency_range": 0.1, 	    # Range of deviation around center frequency in Ocatves
-    "coherence": 0.5 		    # Coherence of 'soundcloud'	
+    "coherence": 0.5, 		    # Coherence of 'soundcloud'	
+    "cue_seeds": (42, 56),          # Random seeds for cue sounds, size of tuple defines number of distinct sounds
+    "target_seeds": (33, 102)	    # Random seeds for target sounds, size of tuple defines number of distinct sounds		
 }
