@@ -38,8 +38,6 @@ from settings import SETTINGS
 # Callback function for tobii eyetracker
 def gaze_callback(gazedata):
     cdata = np.empty((1,33))
-    #cdata[0,0] = gazedata._GazeData__device_time_stamp / 1000000
-    #cdata[0,1] = gazedata._GazeData__system_time_stamp / 1000000
     cdata[0,0] = core.getTime()
     cdata[0,1] = gazedata._GazeData__device_time_stamp
     cdata[0,2] = gazedata._GazeData__system_time_stamp
@@ -87,7 +85,6 @@ def ETvalidation(win,eyetracker,etFrequency):
     
     point = visual.Circle(
         win=win, name='point',
-#        win.size[0]*0.00003, win.size[0]*0.00003
         size=(15,15), pos=(0, 0), lineWidth=1.0, colorSpace='rgb', lineColor='white', fillColor='white',
         opacity=None, depth=0.0, interpolate=True, units='pix')
     circle = visual.Circle(
@@ -201,7 +198,7 @@ def run():
     run_dir = expInfo['outputDir']
     globalFs = expInfo['sound_fs']
     ttl_code = expInfo['ttl_code']
-    
+     
     stream_dir = './streams/{:s}'.format(expInfo['runid'])
     os.makedirs(stream_dir)
 
@@ -354,7 +351,7 @@ def run():
         cueSounds[i] = generate_tone_sequence(
             coherence=SETTINGS["coherence"], 
             frequency=SETTINGS["frequency"],
-            frequency_range=SETTINGS["frequency_range"],
+            frequency_range=float(expInfo['freq_range']),
             sampleRate=globalFs,
             sequence_duration=sequence_duration,
             random_seed=SETTINGS['cue_seeds'][i])
@@ -363,7 +360,7 @@ def run():
         choiceSounds[i] = generate_tone_sequence(
             coherence=SETTINGS["coherence"], 
             frequency=SETTINGS["frequency"],
-            frequency_range=SETTINGS["frequency_range"],
+            frequency_range=float(expInfo['freq_range']),
             sampleRate=globalFs,
             sequence_duration=sequence_duration,
             random_seed=SETTINGS['target_seeds'][i])

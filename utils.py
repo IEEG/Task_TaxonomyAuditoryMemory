@@ -25,7 +25,7 @@ import json
 
 
 def openingDlg():
-    """The opening dialogue for AV40"""
+    """The opening dialogue"""
 
     # TTL options
     ttlOpts = ['None', 'USB_TTL', 'ParallelPort', 'MMB']
@@ -53,37 +53,29 @@ def openingDlg():
         monIdx = monitorOpts.index(prevDlg['monitor'])
         monitorOpts.insert(0,monitorOpts.pop(monIdx))
         runId = prevDlg['runid']
-        #dist = prevDlg['dist']
         ttlIdx = ttlOpts.index(prevDlg['ttl'])
         ttlOpts.insert(0,ttlOpts.pop(ttlIdx))
         responseIdx = responseOpts.index(prevDlg['responseType'])
         responseOpts.insert(0, responseOpts.pop(responseIdx))
-        #diodeIdx = diodeOpts.index(prevDlg['photodiode'])
-        #diodeOpts.insert(0,diodeOpts.pop(diodeIdx))
         etIdx = eyetrackerOpts.index(prevDlg['eyetracker'])
         eyetrackerOpts.insert(0,eyetrackerOpts.pop(etIdx))
 
     except Exception as error:
         print(error)
         runId = ''
-        #dist = 60
 
     # Construct dialogue common to all
     dlgTitle = 'Please enter information below'
     runDlg = gui.Dlg(title=dlgTitle)
     runDlg.addField('RunID',runId)
-    #runDlg.addField('Distance from screen (cm)', dist)
     runDlg.addField('TTL',choices=ttlOpts)
     runDlg.addField('Monitor',choices=monitorOpts)
     runDlg.addField('Reponse Type', choices=responseOpts)
-    #runDlg.addField('Photodiode',choices=diodeOpts)
     runDlg.addField('EyeTracker',choices=eyetrackerOpts)
-    #runDlg.addText(
-    #    'Distance is only necessary if visual angle ("deg") is being used to calculate\nstimulus size or if you would like to calculate visual angle post-hoc')
-    #fieldnames = ['runid','dist','ttl','monitor','photodiode','eyetracker']
+    runDlg.addField('frequency_range','0.3')
+
     runDlg.addText("If response should be pressing a touchscreen, select 'mouse' as response type")
-    # fieldnames = ['runid','dist','ttl','monitor','response','eyetracker']
-    fieldnames = ['runid','ttl','monitor','responseType','eyetracker']
+    fieldnames = ['runid','ttl','monitor','responseType','eyetracker','freq_range']
 
     # If it doesn't exist, create logs folder
     logsFolder = _thisDir + os.sep + u'logs'
@@ -107,14 +99,8 @@ def openingDlg():
             nonacceptable = False
 
     # Save accepted dialogue for next run
-    #toFile(lastSettingsFile, expInfo)
     with open(lastSettingsFile,'w') as f:
         f.write( json.dumps( expInfo ) )
-
-    # Add task settings
-    #taskFile = _thisDir + os.sep + 'settings.json'
-    #task_settings = fromFile(taskFile)
-    #expInfo.update(task_settings)
 
     # Read monitor file
     monFile = _thisDir + os.sep + u'monitors' + os.sep + expInfo['monitor']
@@ -137,8 +123,6 @@ def openingDlg():
         expInfo['usb_port'] = expInfo['usb_port_code']
     else:
         expInfo['ttl_port'] = 'NaN'
-
-    #expInfo['logfilename'] = outputFile
 
     expInfo['outputDir'] = outputDir
     expInfo['date'] = psychopy.data.getDateStr()
