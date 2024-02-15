@@ -25,6 +25,9 @@ from psychopy.hardware import keyboard
 from psychopy.data import ExperimentHandler, TrialHandler2
 from psychopy.constants import NOT_STARTED, STARTED, FINISHED
 import tobii_research as tobii
+# set serial com for reward system on cage-trainer
+#    import serial
+#    port = serial.Serial("COM3",115200)
 
 
 # Ensure that relative paths start from the same directory as this script
@@ -212,9 +215,7 @@ def run():
     # Set how to send and then close the TTL port
     send_ttl, close_ttl = set_ttl(expInfo['ttl'], address)
     
-    # set serial com for reward system on cage-trainer
-#    import serial
-#    port = serial.Serial("COM3",115200)
+
     
     # Calibrate eyetracker
     if expInfo['eyetracker'] != 'None':
@@ -233,7 +234,7 @@ def run():
     mouse = event.Mouse(win=win)
     mouse.setVisible(1)
 
-    # Display a cross in the middle of the screen
+    # Define a cross in the middle of the screen
     crossFixation = visual.ShapeStim(
         win=win, name='crossFixation', vertices='cross',
         size=(100,100),#(0.1,0.1), 
@@ -241,7 +242,7 @@ def run():
         ori=0, pos=(0, 0),
         lineWidth=0, lineColor='white', lineColorSpace='rgb',
         fillColor='white', fillColorSpace='rgb', opacity=1, interpolate=True)
-    
+
     filename = expInfo['outputDir'] + os.sep + expInfo['runid']
     
     # Experiment Handler
@@ -316,6 +317,9 @@ def run():
     diffBoxLims[2] = ((diffBox.pos[1]+diffBox.height/2)/-2)+0.5
     diffBoxLims[3] = ((diffBox.pos[1]-diffBox.height/2)/-2)+0.5
 
+    # PACEMAKER FLASH SETTINGS
+    flash = visual.Rect(win, width=0.1, height=0.1, fillColor='white', lineColor=None)  # Full-screen flash
+    flash.setAutoDraw(False)  # Initially, don't draw the flash
 
     # Initiate audio
     stream = sound.Sound(name='trial_audio', sampleRate=globalFs, stereo=True, syncToWin=win)
@@ -328,7 +332,7 @@ def run():
     trlDur = 60
     numWMclicks = 5
     clickReps = np.floor(trlDur/clickSOA).astype(int)
-    singleClick = np.ones( ( round(clickDur*globalFs),) )
+    singleClick = np.zeros( ( round(clickDur*globalFs),) )
     clickStream = createAudioStream(singleClick,clickSOA,globalFs,clickReps)
     choice2cue_clickStream = createAudioStream(singleClick,clickSOA,globalFs,numWMclicks)
     
@@ -421,12 +425,12 @@ def run():
         
         # Create audio stream. Embed choiceSound within the click train
         if cuesound_id == choicesound_id:
-            audStream = np.concatenate((cueSound, choice2cue_clickStream, cueSound, clickStream)) #identical stimuli on match trials
+            audStream = np.concatenate((choice2cue_clickStream,cueSound, choice2cue_clickStream, cueSound, clickStream)) #identical stimuli on match trials
         else:
-            audStream = np.concatenate((cueSound, choice2cue_clickStream, choiceSound, clickStream))
+            audStream = np.concatenate((choice2cue_clickStream,cueSound, choice2cue_clickStream, choiceSound, clickStream))
 
         # When response can start to be made
-        responseStartTime = np.concatenate((cueSound, choice2cue_clickStream, choiceSound)).shape[0]/globalFs
+        responseStartTime = np.concatenate((choice2cue_clickStream,cueSound, choice2cue_clickStream, choiceSound)).shape[0]/globalFs
 
         # Intertrial interval wait time
         thisTrialITI = randint(SETTINGS['iti'][0]*1000, high=SETTINGS['iti'][1]*1000)/1000
@@ -457,6 +461,8 @@ def run():
         tStartAudio = tNow+thisTrialITI
         
         # When audio starts to play send a TTL
+        flashing = False
+        flashScheduled = False
         keep_going = True
         while keep_going:
             tNow = core.getTime()
@@ -465,11 +471,16 @@ def run():
             if stream.status == STARTED:
                 keep_going = False
             
-            if tNextFlip >= tStartAudio and stream.status == NOT_STARTED:
+            if not flashScheduled and tNextFlip >= tStartAudio and stream.status == NOT_STARTED:
                 stream.play(when=win)
                 win.callOnFlip(send_ttl, ttl_code)
                 win.timeOnFlip(stream, 'tStartRefresh')
+                flashing = True
+                flashScheduled = True
+                nextFlashTime = core.getTime()
                 
+                
+            
             if keep_going:
                 win.flip()
             
@@ -489,6 +500,20 @@ def run():
             tNow = core.getTime()
             tNextFlip = win.getFutureFlipTime(clock=None)
             
+            # control flashing here
+            if flashing:
+                if tNow >= nextFlashTime:
+                    flash.setAutoDraw(True)
+                    win.flip()
+                    core.wait(0.1)
+                    flash.setAutoDraw(False)
+                    win.flip()
+                    
+                    nextFlashTime += clickSOA
+                    
+                    if tNow >= tAllowResponse:
+                        flashing = False
+            
             # Check if it's time to start audio
             if tNextFlip >= tStartAudio and stream.status == NOT_STARTED:
                 stream.play(when=win)
@@ -504,6 +529,9 @@ def run():
                 
                 
                 win.timeOnFlip(sameBox, 'tStartRefresh')
+                flashing = False
+                flash.setAutoDraw(False)
+                win.flip()
 
             # If too much time has passed then end the trial
             if stream.status == FINISHED:
@@ -625,7 +653,7 @@ def run():
         # Display feedback
         if response == correctResponse:
             txtObj = correctResponseText
-            port.write(str.encode('r10'))
+            #port.write(str.encode('r10'))
             #port.flush()
         elif response != correctResponseText and responseTime != 0:
             txtObj = incorrectResponseText
