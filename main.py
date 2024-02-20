@@ -199,10 +199,6 @@ def run():
     globalFs = expInfo['sound_fs']
     ttl_code = expInfo['ttl_code']
     
-    print(expInfo['eyetracker'])
-    print(expInfo['responseType'])
-    print(expInfo['eyetracker'] != 'None' and expInfo['responseType'] == 'Saccade')
-    
     stream_dir = './streams/{:s}'.format(expInfo['runid'])
     os.makedirs(stream_dir)
 
@@ -410,7 +406,7 @@ def run():
     if key == 'escape':
         close_ttl()
         win.close()
-        if expInfo['eyetracker']!='None':
+        if expInfo['eyetracker']!='None' and expInfo['responseType'] == 'Saccade':
             eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
         thisExp.abort()
         core.quit()
@@ -649,7 +645,7 @@ def run():
                     thisExp.saveAsWideText(filename+'.csv', delim='auto')
                     thisExp.saveAsPickle(filename)
                     logging.flush()
-                    if expInfo['eyetracker']!='None':
+                    if expInfo['eyetracker']!='None' and expInfo['responseType'] == 'Saccade':
                         with open(ETdataFilePath, 'ab') as csvfile:
                             np.savetxt(csvfile,ETdata,delimiter=',')
                         eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
@@ -711,7 +707,7 @@ def run():
     thisExp.saveAsWideText(filename+'.csv', delim='auto')
     thisExp.saveAsPickle(filename)
     logging.flush()
-    if expInfo['eyetracker']!='None':
+    if expInfo['eyetracker']!='None' and expInfo['responseType'] == 'Saccade':
         with open(ETdataFilePath, 'ab') as csvfile:
             np.savetxt(csvfile,ETdata,delimiter=',')
         eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
