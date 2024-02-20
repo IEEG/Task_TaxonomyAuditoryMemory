@@ -199,6 +199,10 @@ def run():
     globalFs = expInfo['sound_fs']
     ttl_code = expInfo['ttl_code']
     
+    print(expInfo['eyetracker'])
+    print(expInfo['responseType'])
+    print(expInfo['eyetracker'] != 'None' and expInfo['responseType'] == 'Saccade')
+    
     stream_dir = './streams/{:s}'.format(expInfo['runid'])
     os.makedirs(stream_dir)
 
@@ -214,7 +218,7 @@ def run():
     send_ttl, close_ttl = set_ttl(expInfo['ttl'], address)
     
     # Calibrate eyetracker
-    if expInfo['eyetracker'] != 'None':
+    if expInfo['eyetracker'] != 'None' and expInfo['responseType'] == 'Saccade':
         eyetracker = tobii.find_all_eyetrackers()[0]
         eyetracker.set_gaze_output_frequency(expInfo['eyetracker'])
         tracker_manager_path = 'C:/Users/HBML/AppData/Local/Programs/TobiiProEyeTrackerManager/'
@@ -371,7 +375,7 @@ def run():
             random_seed=SETTINGS['target_seeds'][i])
                 
     # Initiate Eyetracker
-    if expInfo['eyetracker'] != 'None':
+    if expInfo['eyetracker'] != 'None' and expInfo['responseType'] == 'Saccade':
         ETdataFilePath = filename + '_et.csv'
         ETcolumns = 'expTime,deviceTimeStamp,systemTimeStamp,xLeftGazeOriginInTrackboxCoords,yLeftGazeOriginInTrackboxCoords,zLeftGazeOriginInTrackboxCoords,xLeftGazeOriginInUserCoords,yLeftGazeOriginInUserCoords,zLeftGazeOriginInUserCoords,leftGazeOriginValidity,xLeftGazePositionInUserCoords,yLeftGazePositionInUserCoords,zLeftGazePositionInUserCoords,xLeftGazePositionOnDisplay,yLeftGazePositionOnDisplay,leftGazePointValidity,leftPupilDiameter,leftPupilValidity,xRightGazeOriginInTrackboxCoords,yRightGazeOriginInTrackboxCoords,zRightGazeOriginInTrackboxCoords,xRightGazeOriginInUserCoords,yRightGazeOriginInUserCoords,zRightGazeOriginInUserCoords,rightGazeOriginValidity,xRightGazePositionInUserCoords,yRightGazePositionInUserCoords,zRightGazePositionInUserCoords,xRightGazePositionOnDisplay,yRightGazePositionOnDisplay,rightGazePointValidity,rightPupilDiameter,rightPupilValidity'        
         global ETdata
@@ -382,7 +386,7 @@ def run():
     win.flip()
     
     # Do eyetracker validation
-    if expInfo['eyetracker'] != 'None':
+    if expInfo['eyetracker'] != 'None' and expInfo['responseType'] == 'Saccade':
         continueExperiment, validationTimes = ETvalidation(win,eyetracker,int(expInfo['eyetracker']))
         ETvalidationFilePath = filename + '_etValidationTimes.csv'
         with open(ETvalidationFilePath, 'w') as csvfile:
@@ -392,15 +396,15 @@ def run():
     
     # Show instructions
     instructions = "Two tones will play. After the second tone, decide whether the two tones are the same or different. If the two tones are the same <fill1>. If the sounds are different then <fill2>.\nPress <space> to start"
-    if expInfo['responseType'] == 'eyetracker':
+    if expInfo['responseType'] == 'Saccade':
         instructions = instructions.replace("<fill1>", "look at the 'Same' box on the screen") 
         instructions = instructions.replace("<fill2>", "look at the 'Different' box on the screen") 
     elif expInfo['responseType'] == 'Keyboard':
-        instructions = instructions.replace("<fill1>", "press the 'C' key on the keyboard") 
-        instructions = instructions.replace("<fill2>", "press the 'M' key on the keyboard") 
+        instructions = instructions.replace("<fill1>", "press the 'S' key on the keyboard") 
+        instructions = instructions.replace("<fill2>", "press the 'D' key on the keyboard") 
     elif expInfo['responseType'] == 'Mouse':
-        instructions = instructions.replace("<fill1>", "click the 'Same' box on the screen") 
-        instructions = instructions.replace("<fill2>", "click the 'Different' box on the screen") 
+        instructions = instructions.replace("<fill1>", "click the 'left' mouse button") 
+        instructions = instructions.replace("<fill2>", "click the 'right' mouse button") 
     
     key = pauseAndReadText(win, instructions, mouse=None, txtColor=[1, 1, 1], keys=['space', 'escape'], wait=0)
     if key == 'escape':
@@ -498,7 +502,7 @@ def run():
                     thisComponent.status = NOT_STARTED
 
             # Start eyetracker
-            if expInfo['eyetracker']!='None':
+            if expInfo['eyetracker']!='None' and expInfo['responseType'] == 'Saccade':
                 WaitSecs(1)
                 thisTrialITI -= 1
                 eyetracker.subscribe_to(tobii.EYETRACKER_GAZE_DATA,gaze_callback)
@@ -557,7 +561,7 @@ def run():
                     stream.tStopRefresh = tNow
                     
                 # Check for pressed keys on keyboard
-                keysPressed = kb.getKeys(keyList=["escape","c","m"])
+                keysPressed = kb.getKeys(keyList=["escape","s","d"])
                 
                 if expInfo['responseType'] == 'Saccade':
                     # check for target fixation
@@ -607,34 +611,31 @@ def run():
                 # Look for mouse button press
                 if expInfo['responseType'] == 'Mouse' and sameBox.status == STARTED:
                     # Keep checking for if a button is pressed
-                    buttons = mouse.getPressed()
+                    buttons, times = mouse.getPressed(getTime=True)
                     if buttons != prevButtonState:  # button state changed?
                         prevButtonState = buttons
                         if sum(buttons) > 0:  # state changed to a new click
-                            # check if the mouse was inside our 'clickable' objects
-                            gotValidClick = False
-                            clickableList = [sameBox, diffBox, sameText, diffText]
-                            for obj in clickableList:
-                                # is this object clicked on?
-                                if obj.contains(mouse):
-                                    gotValidClick = True
-                                    objPressed = obj.name
-                                    response = objPressed[0:4]
-                                    responseTime = tNow
-                            if gotValidClick:
-                                continueTrial = False
-                                win.callOnFlip(stream.stop)
-                                win.timeOnFlip(stream, 'tStopRefresh')
+                            
+                            # Left mouse click buttons[0] for "same" and right mouse click buttons[2] for "diff"
+                            if buttons[0] == 1:
+                                response ="same"
+                            elif buttons[2] == 1:
+                                response = "diff"
+                                
+                            responseTime = tNow
+                            continueTrial = False
+                            win.callOnFlip(stream.stop)
+                            win.timeOnFlip(stream, 'tStopRefresh')
                 
                 # If keyboard if used for response
                 elif expInfo['responseType'] == 'Keyboard' and sameBox.status == STARTED:
-                    if keysPressed == ["c"]:
+                    if keysPressed == ["s"]:
                         response = "same"
                         responseTime = tNow
                         continueTrial = False
                         win.callOnFlip(stream.stop)
                         win.timeOnFlip(stream, 'tStopRefresh')
-                    elif keysPressed == ["m"]:
+                    elif keysPressed == ["d"]:
                         response = "diff"
                         responseTime = tNow
                         continueTrial = False
@@ -685,7 +686,7 @@ def run():
                     win.flip()
                 
             # unsubscribe from eyetracker
-            if expInfo['eyetracker']!='None':
+            if expInfo['eyetracker']!='None' and expInfo['responseType'] == 'Saccade':
                 eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
                 with open(ETdataFilePath, 'ab') as csvfile:
                     np.savetxt(csvfile,ETdata,delimiter=',')

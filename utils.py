@@ -98,9 +98,15 @@ def openingDlg():
         # Check if the RunID already exists
         expInfo = dict(zip(fieldnames,runOrder))
         outputDir = logsFolder + os.sep + '%s' % (expInfo['runid'])
+        
         if os.path.isdir(outputDir):
             runDlg.setWindowTitle('runID already exists')
             nonacceptable = True
+            
+        elif expInfo['responseType'] == 'Saccade' and expInfo['eyetracker'] == 'None':
+            runDlg.setWindowTitle('Set eyetracker sampling rate for Saccade response!')
+            nonacceptable = True
+            
         else:
             nonacceptable = False
 
@@ -117,8 +123,6 @@ def openingDlg():
     if 'task_settings' in monitor_settings.keys():
         custom_task_settings = monitor_settings.pop('task_settings')
         expInfo.update(custom_task_settings)
-
-    print(monitor_settings)
     
     expInfo.update(monitor_settings)
 
