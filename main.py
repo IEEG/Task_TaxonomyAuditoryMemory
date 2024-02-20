@@ -3,6 +3,9 @@ TAMy
 Auditory Memory Task
 
 Noah Markowitz
+Elisabeth Freund
+Chase Mackey
+Maximilian Nentwich
 Human Brain Mapping Laboratory
 North Shore University Hospital
 June 2023
@@ -319,6 +322,12 @@ def run():
     diffBoxLims[1] = ((diffBox.pos[0]+diffBox.width/2)/2)+0.5
     diffBoxLims[2] = ((diffBox.pos[1]+diffBox.height/2)/-2)+0.5
     diffBoxLims[3] = ((diffBox.pos[1]-diffBox.height/2)/-2)+0.5
+    
+    if expInfo['visualTimer'] == 'Flash':
+        # Define pacemaker flash
+        flash = visual.Rect(win, width=100, height=100, fillColor='white', lineColor=None)
+        # Full screen flash
+        flash.setAutoDraw(False)    # Initially don't draw the flash
 
     # Initiate audio
     stream = sound.Sound(name='trial_audio', sampleRate=globalFs, stereo=True, syncToWin=win)
@@ -508,6 +517,10 @@ def run():
             tStartAudio = tNow+thisTrialITI
             
             # When audio starts to play send a TTL
+            if expInfo['visualTimer'] == 'Flash':
+                flashing=True
+                flashScheduled=False
+                
             keep_going = True
             while keep_going:
                 tNow = core.getTime()
@@ -521,6 +534,11 @@ def run():
                     win.callOnFlip(send_ttl, ttl_code)
                     win.timeOnFlip(stream, 'tStartRefresh')
                     
+                    if expInfo['visualTimer'] == 'Flash' and not flashScheduled:
+                        flashing=True
+                        flashScheduled=True
+                        nextFlashTime = core.getTime()
+                    
                 if keep_going:
                     win.flip()
                 
@@ -533,6 +551,21 @@ def run():
                 # Current time
                 tNow = core.getTime()
                 tNextFlip = win.getFutureFlipTime(clock=None)
+                
+                if expInfo['visualTimer'] == 'Flash':
+                    if flashing:
+                        if tNow >= nextFlashTime:
+                            print('I was here')
+                            flash.setAutoDraw(True)
+                            win.flip()
+                            core.wait(0.1)
+                            flash.setAutoDraw(False)
+                            win.flip()
+                            
+                            nextFlashTime += clickSOA
+                            
+                            if tNow >= tAllowResponse:
+                                flashing = False
                 
                 # Check if it's time to start audio
                 if tNextFlip >= tStartAudio and stream.status == NOT_STARTED:
@@ -548,6 +581,11 @@ def run():
                     diffText.setAutoDraw(True)
                     responseStarted = True
                     win.timeOnFlip(sameBox, 'tStartRefresh')
+                    
+                    if expInfo['visualTimer'] == 'Flash':
+                        flashing = False
+                        flash.setAutoDraw(False)
+                        win.flip()
 
                 # If too much time has passed then end the trial
                 if stream.status == FINISHED:

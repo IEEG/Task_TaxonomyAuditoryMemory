@@ -41,6 +41,9 @@ def openingDlg():
     
     # Trial options
     trialOpts = ['Training', 'Experiment']
+    
+    # Visual Flash
+    visualOpts = ['Flash', 'None']
 
     # Retrieve info and files
     _thisDir = os.path.dirname(os.path.abspath(__file__))
@@ -64,6 +67,8 @@ def openingDlg():
         eyetrackerOpts.insert(0,eyetrackerOpts.pop(etIdx))
         trialIdx = trialOpts.index(prevDlg['trialType'])
         trialOpts.insert(0, trialOpts.pop(trialIdx))
+        visualIdx = visualOpts.index(prevDlg['visualTimer'])
+        visualOpts.insert(0, visualOpts.pop(visualIdx))
 
     except Exception as error:
         print(error)
@@ -79,9 +84,10 @@ def openingDlg():
     runDlg.addField('EyeTracker',choices=eyetrackerOpts)
     runDlg.addField('frequency_range','0.3')
     runDlg.addField('Trial Type', choices=trialOpts)
+    runDlg.addField('Visual Timer', choices=visualOpts)
 
     runDlg.addText("If response should be pressing a touchscreen, select 'mouse' as response type")
-    fieldnames = ['runid','ttl','monitor','responseType','eyetracker','freq_range', 'trialType']
+    fieldnames = ['runid','ttl','monitor','responseType','eyetracker','freq_range', 'trialType', 'visualTimer']
 
     # If it doesn't exist, create logs folder
     logsFolder = _thisDir + os.sep + u'logs'
