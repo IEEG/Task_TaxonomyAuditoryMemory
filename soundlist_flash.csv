@@ -1,0 +1,13 @@
+preserve_sequence,cue_id,choice_id,click_stream,flash_stream,delay
+1,0,NaN,0,1,-1
+1,1,NaN,0,1,-1
+0,0,0,0,1,-1
+0,1,1,0,1,-1
+1,0,NaN,0,1,0
+1,1,NaN,0,1,0
+0,0,0,0,1,0
+0,1,1,0,1,0
+1,0,NaN,0,1,1
+1,1,NaN,0,1,1
+0,0,0,0,1,1
+0,1,1,0,1,1

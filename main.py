@@ -25,7 +25,6 @@ import copy
 from psychtoolbox import GetSecs, WaitSecs
 from psychopy import core, event, visual, sound, logging, gui
 from psychopy.hardware import keyboard
-#from psychopy.tools import environmenttools
 from psychopy.data import ExperimentHandler, TrialHandler2, importConditions
 from psychopy.constants import NOT_STARTED, STARTED, FINISHED
 import tobii_research as tobii
@@ -75,7 +74,7 @@ def gaze_callback(gazedata):
     cdata[0,31] = gazedata._GazeData__right._EyeData__pupil_data._PupilData__diameter
     cdata[0,32] = gazedata._GazeData__right._EyeData__pupil_data._PupilData__validity
     global ETdata
-    ETdata = np.append(ETdata,cdata, axis=0)
+    ETdata = np.append(ETdata, cdata, axis=0)
 
 def ETvalidation(win,eyetracker,etFrequency):
     # just give it the window and eyetracker objects created in the main script as well as the frequency that the eyetracker is set to
@@ -200,7 +199,8 @@ def run():
     expInfo = openingDlg()
     run_dir = expInfo['outputDir']
     globalFs = expInfo['sound_fs']
-    ttl_code = expInfo['ttl_code']
+    ttl_start = expInfo['ttl_start']
+    ttl_resp = expInfo['ttl_resp']
     
     stream_dir = './streams/{:s}'.format(expInfo['runid'])
     os.makedirs(stream_dir)
@@ -257,7 +257,7 @@ def run():
     elif expInfo['trialType'] == 'Experiment':
         block_file = 'experiment_blocks.csv'
         
-    blocks = TrialHandler2(nReps=SETTINGS["nBlocks"], method='random', 
+    blocks = TrialHandler2(nReps=expInfo['n_blocks'], method='random', 
         extraInfo=expInfo, originPath=-1,
         trialList=importConditions(block_file),
         seed=None, name='blocks')
@@ -323,11 +323,10 @@ def run():
     diffBoxLims[2] = ((diffBox.pos[1]+diffBox.height/2)/-2)+0.5
     diffBoxLims[3] = ((diffBox.pos[1]-diffBox.height/2)/-2)+0.5
     
-    if expInfo['visualTimer'] == 'Flash':
-        # Define pacemaker flash
-        flash = visual.Rect(win, width=100, height=100, fillColor='white', lineColor=None)
-        # Full screen flash
-        flash.setAutoDraw(False)    # Initially don't draw the flash
+    # Define pacemaker flash
+    flash = visual.Rect(win, width=100, height=100, fillColor='white', lineColor=None)
+    # Full screen flash
+    flash.setAutoDraw(False)    # Initially don't draw the flash
 
     # Initiate audio
     stream = sound.Sound(name='trial_audio', sampleRate=globalFs, stereo=True, syncToWin=win)
@@ -517,7 +516,7 @@ def run():
             tStartAudio = tNow+thisTrialITI
             
             # When audio starts to play send a TTL
-            if expInfo['visualTimer'] == 'Flash':
+            if thisTrial["flash_stream"]:
                 flashing=True
                 flashScheduled=False
                 
@@ -531,10 +530,10 @@ def run():
                 
                 if tNextFlip >= tStartAudio and stream.status == NOT_STARTED:
                     stream.play(when=win)
-                    win.callOnFlip(send_ttl, ttl_code)
+                    win.callOnFlip(send_ttl, ttl_start)
                     win.timeOnFlip(stream, 'tStartRefresh')
                     
-                    if expInfo['visualTimer'] == 'Flash' and not flashScheduled:
+                    if thisTrial["flash_stream"] and not flashScheduled:
                         flashing=True
                         flashScheduled=True
                         nextFlashTime = core.getTime()
@@ -552,10 +551,9 @@ def run():
                 tNow = core.getTime()
                 tNextFlip = win.getFutureFlipTime(clock=None)
                 
-                if expInfo['visualTimer'] == 'Flash':
+                if thisTrial["flash_stream"]:
                     if flashing:
                         if tNow >= nextFlashTime:
-                            print('I was here')
                             flash.setAutoDraw(True)
                             win.flip()
                             core.wait(0.1)
@@ -570,7 +568,7 @@ def run():
                 # Check if it's time to start audio
                 if tNextFlip >= tStartAudio and stream.status == NOT_STARTED:
                     stream.play(when=win)
-                    win.callOnFlip(send_ttl, ttl_code)
+                    win.callOnFlip(send_ttl, ttl_start)
                     win.timeOnFlip(stream, 'tStartRefresh')
                 
                 # Present two images/shape representing the choices when time is right
@@ -582,7 +580,7 @@ def run():
                     responseStarted = True
                     win.timeOnFlip(sameBox, 'tStartRefresh')
                     
-                    if expInfo['visualTimer'] == 'Flash':
+                    if thisTrial["flash_stream"]:
                         flashing = False
                         flash.setAutoDraw(False)
                         win.flip()
@@ -635,14 +633,16 @@ def run():
                                 continueTrial = False
                                 win.callOnFlip(stream.stop)
                                 win.timeOnFlip(stream, 'tStopRefresh')
+                                win.callOnFlip(send_ttl, ttl_resp)
                             elif isInDiffBox:
                                 responseTime = tNow - fix
                                 response = 'diff'
                                 continueTrial = False
                                 win.callOnFlip(stream.stop)
                                 win.timeOnFlip(stream, 'tStopRefresh')
+                                win.callOnFlip(send_ttl, ttl_resp)
                 
-                # Look for mouse button press
+                # Look for /mouse button press
                 if expInfo['responseType'] == 'Mouse' and sameBox.status == STARTED:
                     # Keep checking for if a button is pressed
                     buttons, times = mouse.getPressed(getTime=True)
@@ -653,13 +653,18 @@ def run():
                             # Left mouse click buttons[0] for "same" and right mouse click buttons[2] for "diff"
                             if buttons[0] == 1:
                                 response ="same"
+                                responseTime = tNow
+                                continueTrial = False
+                                win.callOnFlip(stream.stop)
+                                win.timeOnFlip(stream, 'tStopRefresh')
+                                win.callOnFlip(send_ttl, ttl_resp)
                             elif buttons[2] == 1:
                                 response = "diff"
-                                
-                            responseTime = tNow
-                            continueTrial = False
-                            win.callOnFlip(stream.stop)
-                            win.timeOnFlip(stream, 'tStopRefresh')
+                                responseTime = tNow
+                                continueTrial = False
+                                win.callOnFlip(stream.stop)
+                                win.timeOnFlip(stream, 'tStopRefresh')
+                                win.callOnFlip(send_ttl, ttl_resp)
                 
                 # If keyboard if used for response
                 elif expInfo['responseType'] == 'Keyboard' and sameBox.status == STARTED:
@@ -669,12 +674,14 @@ def run():
                         continueTrial = False
                         win.callOnFlip(stream.stop)
                         win.timeOnFlip(stream, 'tStopRefresh')
+                        win.callOnFlip(send_ttl, ttl_resp)
                     elif keysPressed == ["d"]:
                         response = "diff"
                         responseTime = tNow
                         continueTrial = False
                         win.callOnFlip(stream.stop)
                         win.timeOnFlip(stream, 'tStopRefresh')
+                        win.callOnFlip(send_ttl, ttl_resp)
                         
                 # If <esc> pressed then exit task. If click train ends then end the trial
                 if keysPressed == ["escape"]:
@@ -732,10 +739,12 @@ def run():
             crossFixation.setAutoDraw(True)
 
             # Append trial info
+            t_choice = (sRespTrial+len(choiceSound)) / globalFs
+            
             thisExp.addData('audio_onset', stream.tStartRefresh)
             thisExp.addData('audio_offset', stream.tStopRefresh)
             thisExp.addData('display_feedback', txtObj.tStartRefresh)
-            thisExp.addData('response_time', responseTime)
+            thisExp.addData('response_time', responseTime - t_choice)
             thisExp.addData('response', response)
             thisExp.nextEntry()
         

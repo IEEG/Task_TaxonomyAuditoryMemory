@@ -1,8 +1,7 @@
 SETTINGS = {
     "iti": (0,1),                   # Range of intertrial interval in seconds
-    "nBlocks": 1,                   # Number of repetitions of each trial block definied in blocks.csv
-    "nTrials": 5,                   # Number of repetitions of each trial definied in blocks
-    "pre_time": 0.624*4,            # Time before onset of Cue in seconds
+    "nTrials": 1,                   # Number of repetitions of each trial definied in blocks
+    "pre_time": 0.624*1,            # Time before onset of Cue in seconds
     "trial_time": 0.624*8,          # Time between when cue and choice sounds in seconds
     "wait_time": 0.624*8,           # duration to allow for choice before proceeding to next trial in seconds
     "click_soa": 0.624,             # Time between clicks in seconds
