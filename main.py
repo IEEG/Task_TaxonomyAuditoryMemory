@@ -324,7 +324,7 @@ def run():
     diffBoxLims[3] = ((diffBox.pos[1]-diffBox.height/2)/-2)+0.5
     
     # Define pacemaker flash
-    flash = visual.Rect(win, width=100, height=100, fillColor='white', lineColor=None)
+    flash = visual.Rect(win, width=SETTINGS["flash_size"][0], height=SETTINGS["flash_size"][1], units='pix', fillColor='white', lineColor=None)
     # Full screen flash
     flash.setAutoDraw(False)    # Initially don't draw the flash
 
@@ -420,6 +420,8 @@ def run():
         core.quit()
     
     # Start blocks
+    n_block = 0
+    
     for thisBlock in blocks:
 
         trials = TrialHandler2(
@@ -429,6 +431,9 @@ def run():
             originPath=__file__,
             extraInfo=expInfo)
         thisExp.addLoop(trials)
+        
+        n_trial = 0
+        n_correct_block = 0
    
         for thisTrial in trials:
                         
@@ -747,6 +752,27 @@ def run():
             thisExp.addData('response_time', responseTime - t_choice)
             thisExp.addData('response', response)
             thisExp.nextEntry()
+            
+            # Process response oounter
+            n_trial += 1
+            if response == correctResponse:
+                n_correct_block += 1
+                
+        # Display number of correct responses and enable short break
+        n_block += 1
+        block_feedback = 'Block {:d} out of {:s} complete! Feel free to take a break!\n{:3.0f}% ({:d} out of {:d}) correct.\nPress <space> to continue.'.format(n_block, expInfo['n_blocks'], n_correct_block/n_trial*100, n_correct_block, n_trial)
+        
+        crossFixation.setAutoDraw(False)
+        key = pauseAndReadText(win, block_feedback, mouse=None, txtColor=[1, 1, 1], keys=['space', 'escape'], wait=0)
+        if key == 'escape':
+            close_ttl()
+            win.close()
+            if expInfo['eyetracker']!='None' and expInfo['responseType'] == 'Saccade':
+                eyetracker.unsubscribe_from(tobii.EYETRACKER_GAZE_DATA)
+            thisExp.abort()
+            core.quit()
+            
+        crossFixation.setAutoDraw(True)
         
     # Task over. Close everything
     close_ttl()

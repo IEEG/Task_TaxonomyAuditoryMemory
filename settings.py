@@ -14,5 +14,6 @@ SETTINGS = {
     "frequency_range": 0.1, 	    # Range of deviation around center frequency in Ocatves
     "coherence": 0.5, 		    # Coherence of 'soundcloud'	
     "cue_seeds": (42, 56),          # Random seeds for cue sounds, size of tuple defines number of distinct sounds
-    "target_seeds": (33, 102)	    # Random seeds for target sounds, size of tuple defines number of distinct sounds		
+    "target_seeds": (33, 102),	    # Random seeds for target sounds, size of tuple defines number of distinct sounds
+    "flash_size": [200, 200]	    # Size of flashing box	
 }
