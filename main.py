@@ -325,9 +325,19 @@ def run():
     
     # Define pacemaker flash
     flash = visual.Rect(win, width=SETTINGS["flash_size"][0], height=SETTINGS["flash_size"][1], units='pix', fillColor='white', lineColor=None)
+    flash_diode = visual.Rect(win, 
+                                width=SETTINGS["flash_size"][0], 
+                                height=SETTINGS["flash_size"][1], 
+                                pos=[-(expInfo['screen_resolution'][0]/2)+(SETTINGS["flash_size"][0]/2), 
+                                (expInfo['screen_resolution'][1]/2)-(SETTINGS["flash_size"][1]/2)], 
+                                units='pix', 
+                                fillColor='white', 
+                                lineColor=None)
+
     # Full screen flash
     flash.setAutoDraw(False)    # Initially don't draw the flash
-
+    flash_diode.setAutoDraw(False) 
+    
     # Initiate audio
     stream = sound.Sound(name='trial_audio', sampleRate=globalFs, stereo=True, syncToWin=win)
 
@@ -560,9 +570,11 @@ def run():
                     if flashing:
                         if tNow >= nextFlashTime:
                             flash.setAutoDraw(True)
+                            flash_diode.setAutoDraw(True) 
                             win.flip()
                             core.wait(0.1)
                             flash.setAutoDraw(False)
+                            flash_diode.setAutoDraw(False) 
                             win.flip()
                             
                             nextFlashTime += clickSOA
@@ -588,6 +600,7 @@ def run():
                     if thisTrial["flash_stream"]:
                         flashing = False
                         flash.setAutoDraw(False)
+                        flash_diode.setAutoDraw(False) 
                         win.flip()
 
                 # If too much time has passed then end the trial
