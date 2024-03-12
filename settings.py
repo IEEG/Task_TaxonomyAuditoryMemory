@@ -1,7 +1,7 @@
 SETTINGS = {
     "iti": (0,1),                   # Range of intertrial interval in seconds
     "nTrials": 1,                   # Number of repetitions of each trial definied in blocks
-    "pre_time": 0.624*1,            # Time before onset of Cue in seconds
+    "pre_time": 0.624*3,            # Time before onset of Cue in seconds
     "trial_time": 0.624*8,          # Time between when cue and choice sounds in seconds
     "wait_time": 0.624*8,           # duration to allow for choice before proceeding to next trial in seconds
     "click_soa": 0.624,             # Time between clicks in seconds
@@ -15,5 +15,6 @@ SETTINGS = {
     "coherence": 0.5, 		    # Coherence of 'soundcloud'	
     "cue_seeds": (42, 56),          # Random seeds for cue sounds, size of tuple defines number of distinct sounds
     "target_seeds": (33, 102),	    # Random seeds for target sounds, size of tuple defines number of distinct sounds
-    "flash_size": [200, 200]	    # Size of flashing box	
+    "flash_size": [200, 200],	    # Size of flashing box
+    "diode_size": 100		    # Size of flashing box in corner for photodiode           	
 }

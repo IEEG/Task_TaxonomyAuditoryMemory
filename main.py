@@ -326,10 +326,10 @@ def run():
     # Define pacemaker flash
     flash = visual.Rect(win, width=SETTINGS["flash_size"][0], height=SETTINGS["flash_size"][1], units='pix', fillColor='white', lineColor=None)
     flash_diode = visual.Rect(win, 
-                                width=SETTINGS["flash_size"][0], 
-                                height=SETTINGS["flash_size"][1], 
-                                pos=[-(expInfo['screen_resolution'][0]/2)+(SETTINGS["flash_size"][0]/2), 
-                                (expInfo['screen_resolution'][1]/2)-(SETTINGS["flash_size"][1]/2)], 
+                                width=SETTINGS["diode_size"], 
+                                height=SETTINGS["diode_size"], 
+                                pos=[-(expInfo['screen_resolution'][0]/2)+(SETTINGS["diode_size"]/2), 
+                                (expInfo['screen_resolution'][1]/2)-(SETTINGS["diode_size"]/2)], 
                                 units='pix', 
                                 fillColor='white', 
                                 lineColor=None)
